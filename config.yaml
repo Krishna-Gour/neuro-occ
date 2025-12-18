@@ -1,0 +1,86 @@
+# ==============================================================================
+# CONFIGURATION FOR NEURO-OCC SYNTHETIC DATA GENERATION
+# ==============================================================================
+
+# --- Simulation Parameters ---
+# Seed for random number generators to ensure reproducibility.
+random_seed: 42
+# The start date for the entire simulation. All generated times are relative to this.
+# Format: YYYY-MM-DDTHH:MM:SSZ
+simulation_start_date: "2025-12-01T00:00:00Z"
+
+# --- Data Generation Counts ---
+num_airports: 30
+num_aircraft: 100
+num_pilots: 500
+
+# --- Entity Properties ---
+# A list of IATA codes to sample from.
+airport_codes:
+    - "DEL" # Delhi
+    - "BOM" # Mumbai
+    - "BLR" # Bangalore
+    - "MAA" # Chennai
+    - "CCU" # Kolkata
+    - "HYD" # Hyderabad
+    - "AMD" # Ahmedabad
+    - "PNQ" # Pune
+    - "GOI" # Goa
+    - "LKO" # Lucknow
+    - "JAI" # Jaipur
+    - "COK" # Kochi
+    - "SXR" # Srinagar
+    - "ATQ" # Amritsar
+    - "GAU" # Guwahati
+    - "PAT" # Patna
+    - "BBI" # Bhubaneswar
+    - "IXC" # Chandigarh
+    - "NAG" # Nagpur
+    - "VNS" # Varanasi
+    - "TRV" # Thiruvananthapuram
+    - "IXB" # Bagdogra
+    - "RPR" # Raipur
+    - "VGA" # Vijayawada
+    - "IXR" # Ranchi
+    - "DED" # Dehradun
+    - "IDR" # Indore
+    - "UDR" # Udaipur
+    - "JGA" # Jamnagar
+    - "VTZ" # Visakhapatnam
+
+# A list of aircraft models to sample from.
+aircraft_models:
+    - "Airbus A320"
+    - "Boeing 737"
+    - "ATR 72"
+    - "Bombardier Q400"
+    - "Airbus A321"
+    - "Boeing 787"
+
+# --- Flight & Rotation Generation Parameters ---
+# The number of flights each aircraft will perform in a day.
+min_flights_per_rotation: 2
+max_flights_per_rotation: 5
+
+# The time an aircraft spends on the ground between flights.
+min_turnaround_time_minutes: 45
+max_turnaround_time_minutes: 90
+
+# Range for flight durations. Not geographically accurate, but constrained.
+min_flight_duration_hours: 0.75
+max_flight_duration_hours: 4.0
+
+# DGCA 2025 FDTL Regulatory Constants
+dgca_fdtl:
+  max_daily_flight_time: 8.0
+  max_daily_duty_period: 12.0
+  min_rest_period: 12.0
+  max_consecutive_night_duties: 2
+  mandatory_night_rest_hours: 56.0
+  weekly_flight_time_limit: 35.0
+
+# --- Reinforcement Learning Cost Function Weights ---
+cost_weights:
+  w_delay: 1.0       # Cost per minute of delay
+  w_cancel: 500.0    # Cost per cancellation
+  w_violation: 1000.0 # High penalty for regulatory violation

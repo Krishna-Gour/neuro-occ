@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+ray[rllib]
+gymnasium
+pandas
+numpy
+pydantic
+mcp
+torch
+transformers
+python-multipart
+python-dotenv
+httpx
