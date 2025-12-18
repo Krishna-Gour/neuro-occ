@@ -32,4 +32,49 @@ This project experiments with combining large language models (LLMs) and symboli
 
 Requires Python 3.10+, Node.js for dashboard. See `requirements.txt` and `documentation/` for details.
 
+## Getting Started
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Krishna-Gour/neuro-occ.git
+   cd neuro-occ
+   ```
+
+2. **Set up Python environment:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On macOS/Linux
+   pip install -r requirements.txt
+   ```
+
+3. **Generate synthetic data:**
+   ```bash
+   python scripts/generate_data.py
+   ```
+
+4. **Launch MCP servers** (run in separate terminals or background):
+   ```bash
+   # Crew data server
+   python mcp_servers/crew_mcp.py &
+
+   # Fleet data server
+   python mcp_servers/fleet_mcp.py &
+
+   # Regulatory data server
+   python mcp_servers/reg_mcp.py &
+   ```
+
+5. **Start the dashboard:**
+   ```bash
+   cd dashboard
+   npm install
+   npm start
+   ```
+   Access at `http://localhost:3000`.
+
+6. **Run the MVP demo:**
+   ```bash
+   PYTHONPATH=. python scripts/mvp_demo.py
+   ```
+
 This is an experimental project, not a production system.
