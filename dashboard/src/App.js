@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactFlow, { Background, Controls } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { AlertCircle, CheckCircle, Brain, Plane, ThumbsUp } from 'lucide-react';
+import { AlertCircle, CheckCircle, Brain, Plane, ThumbsUp, Users, MapPin } from 'lucide-react';
 
 const initialNodes = [
   { id: 'DEL', position: { x: 250, y: 5 }, data: { label: 'Delhi (DEL)' } },
@@ -15,14 +15,42 @@ const initialEdges = [
 ];
 
 function App() {
-  const [disruption, setDisruption] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [proposals, setProposals] = useState([]);
   const [approvedSolution, setApprovedSolution] = useState(null);
   const [edges, setEdges] = useState(initialEdges);
+  const [systemStatus, setSystemStatus] = useState({
+    pilots: 0,
+    aircraft: 0,
+    flights: 0,
+    serversOnline: false
+  });
+
+  // Fetch system status on load
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const [pilotsRes, aircraftRes] = await Promise.all([
+          fetch('http://localhost:8001/pilots'),
+          fetch('http://localhost:8002/aircraft')
+        ]);
+        const pilots = await pilotsRes.json();
+        const aircraft = await aircraftRes.json();
+        setSystemStatus({
+          pilots: pilots.length,
+          aircraft: aircraft.length,
+          flights: 349, // From generated data
+          serversOnline: true
+        });
+      } catch (error) {
+        console.error('Failed to fetch system status:', error);
+        setSystemStatus(prev => ({ ...prev, serversOnline: false }));
+      }
+    };
+    fetchStatus();
+  }, []);
 
   const triggerDisruption = () => {
-    setDisruption(true);
     setProposals([]);
     setApprovedSolution(null);
     setEdges(initialEdges.map(e => ({ ...e, style: { stroke: '#ef4444' }, animated: false })));
@@ -99,6 +127,25 @@ function App() {
             {thinking ? <Brain className="animate-pulse" /> : <AlertCircle />}
             System Status
           </h2>
+          
+          <div style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <Users size={16} color={systemStatus.serversOnline ? '#10b981' : '#ef4444'} />
+              <span>Pilots: {systemStatus.pilots}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <Plane size={16} color={systemStatus.serversOnline ? '#10b981' : '#ef4444'} />
+              <span>Aircraft: {systemStatus.aircraft}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <MapPin size={16} color={systemStatus.serversOnline ? '#10b981' : '#ef4444'} />
+              <span>Flights: {systemStatus.flights}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <CheckCircle size={16} color={systemStatus.serversOnline ? '#10b981' : '#ef4444'} />
+              <span>MCP Servers: {systemStatus.serversOnline ? 'Online' : 'Offline'}</span>
+            </div>
+          </div>
           
           {thinking && (
             <div style={{ color: '#94a3b8' }}>
