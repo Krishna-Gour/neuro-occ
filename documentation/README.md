@@ -87,29 +87,29 @@ For a deeper dive into the specific components of the Neuro-OCC system, please r
   id: 5, 
   name: "Neuro-OCC: Federated Autonomous Recovery System", 
   description: "A groundbreaking autonomous control center that uses Neuro-Symbolic AI and Model Context Protocol (MCP) to manage airline disruptions in real-time, ensuring compliance with the 2025 DGCA FDTL norms while optimizing network recovery.", 
-  slideContent: `Problem Statement: In 2025, the Indian aviation sector faced a systemic crisis. The enforcement of strict new Flight Duty Time Limitations (FDTL) by the DGCA, combined with infrastructure failures like dense fog, led to massive operational meltdowns, most notably IndiGo cancelling over 2,000 flights in a single week. The root cause is not just the weather, but the industry's reliance on static, siloed planning systems that cannot adapt to dynamic constraints in real-time. This results in thousands of stranded passengers, exhausted crew, and millions in revenue loss.
+  slideContent: `- **Problem Statement**: In 2025, the Indian aviation sector faced a systemic crisis. The enforcement of strict new Flight Duty Time Limitations (FDTL) by the DGCA, combined with infrastructure failures like dense fog, led to massive operational meltdowns, most notably IndiGo cancelling over 2,000 flights in a single week. The root cause is not just the weather, but the industry's reliance on static, siloed planning systems that cannot adapt to dynamic constraints in real-time. This results in thousands of stranded passengers, exhausted crew, and millions in revenue loss.
 
-Why I Chose This: The 2025 aviation crisis is the perfect storm of regulatory pressure, operational complexity, and public impact. Solving it requires moving beyond simple software tools to building an autonomous decision-making system. This project demonstrates the ability to handle high-stakes, combinatorial optimization problems using the most advanced AI architectures available today, directly addressing a critical national infrastructure challenge.
+- **Why I Chose This**: The 2025 aviation crisis is the perfect storm of regulatory pressure, operational complexity, and public impact. Solving it requires moving beyond simple software tools to building an autonomous decision-making system. This project demonstrates the ability to handle high-stakes, combinatorial optimization problems using the most advanced AI architectures available today, directly addressing a critical national infrastructure challenge.
 
-Solution Built: Neuro-OCC is a federated autonomous recovery system that acts as a synthetic Operations Control Center. It uses a novel Neuro-Symbolic architecture where an LLM-based agent proposes recovery plans (e.g., flight swaps, cancellations) based on System 2 Chain-of-Thought reasoning. These plans are then rigorously validated by a deterministic Symbolic Logic module that encodes the 2025 DGCA FDTL laws, ensuring 100% regulatory compliance. The system ingests data via a federated Model Context Protocol (MCP) architecture, allowing it to query disparate legacy systems (Crew, Fleet, Regulations) seamlessly. It also incorporates a Mamba-based State Space Model agent for high-frequency sensor monitoring to predict aircraft maintenance issues before they cause delays.
+- **Solution Built**: Neuro-OCC is a federated autonomous recovery system that acts as a synthetic Operations Control Center. It uses a novel Neuro-Symbolic architecture where an LLM-based agent proposes recovery plans (e.g., flight swaps, cancellations) based on System 2 Chain-of-Thought reasoning. These plans are then rigorously validated by a deterministic Symbolic Logic module that encodes the 2025 DGCA FDTL laws, ensuring 100% regulatory compliance. The system ingests data via a federated Model Context Protocol (MCP) architecture, allowing it to query disparate legacy systems (Crew, Fleet, Regulations) seamlessly. It also incorporates a Mamba-based State Space Model agent for high-frequency sensor monitoring to predict aircraft maintenance issues before they cause delays.
 
-Core Flows: Disruption Event triggers Neuro-OCC -> Mamba Agent assesses fleet health -> MCP Servers federate real-time crew/aircraft data -> Neuro-Symbolic Agent initiates System 2 reasoning loop -> LLM proposes multiple recovery scenarios -> Symbolic Logic Module validates proposals against 2025 DGCA FDTL rules -> Optimal, compliant plan is selected and executed via agentic workflows -> Real-time dashboard updates stakeholder visibility.
+- **Core Flows**: Disruption Event triggers Neuro-OCC -> Mamba Agent assesses fleet health -> MCP Servers federate real-time crew/aircraft data -> Neuro-Symbolic Agent initiates System 2 reasoning loop -> LLM proposes multiple recovery scenarios -> Symbolic Logic Module validates proposals against 2025 DGCA FDTL rules -> Optimal, compliant plan is selected and executed via agentic workflows -> Real-time dashboard updates stakeholder visibility.
 
-Impact (Projected):
-- Reduction in disruption recovery time from hours to milliseconds.
-- Guaranteed 100% compliance with 2025 DGCA FDTL norms, eliminating regulatory fines.
-- Potential to save airlines millions in passenger compensation and operational waste.
-- Reduction in cascading delays by optimizing resource allocation dynamically.
+- **Impact (Projected)**:
+  - Reduction in disruption recovery time from hours to milliseconds.
+  - Guaranteed 100% compliance with 2025 DGCA FDTL norms, eliminating regulatory fines.
+  - Potential to save airlines millions in passenger compensation and operational waste.
+  - Reduction in cascading delays by optimizing resource allocation dynamically.
 
-Tech Stack:
-- Architecture: Neuro-Symbolic AI, Federated Model Context Protocol (MCP), Multi-Agent System
-- AI/ML Models: Llama-3 (LLM for reasoning), Mamba (State Space Model for sensor data), Custom Symbolic Logic Module (Python)
-- Simulation & RL: Ray RLLib, Gymnasium
-- Backend: Python, FastAPI
-- Frontend: React Flow (Network Graph visualization)
-- Data & Infra: MCP Servers (Typescript/Python), PostgreSQL, Redis (for task queuing)
+- **Tech Stack**:
+  - **Architecture**: Neuro-Symbolic AI, Federated Model Context Protocol (MCP), Multi-Agent System
+  - **AI/ML Models**: Llama-3 (LLM for reasoning), Mamba (State Space Model for sensor data), Custom Symbolic Logic Module (Python)
+  - **Simulation & RL**: Ray RLLib, Gymnasium
+  - **Backend**: Python, FastAPI
+  - **Frontend**: React Flow (Network Graph visualization)
+  - **Data & Infra**: MCP Servers (Typescript/Python), PostgreSQL, Redis (for task queuing)
 
-Note: This project is a "Zero-to-One" innovation. It showcases the application of cutting-edge 2026-27 AI trends—including MCP, Neuro-Symbolic AI, and System 2 reasoning—to solve a real-world, NP-hard optimization problem in a critical industry.`, 
+- **Note**: This project is a "Zero-to-One" innovation. It showcases the application of cutting-edge 2026-27 AI trends—including MCP, Neuro-Symbolic AI, and System 2 reasoning—to solve a real-world, NP-hard optimization problem in a critical industry.`, 
   date: "2025-12-18", 
   demoLink: "https://github.com/Krishna-Gour/neuro-occ", 
   imagePath: "/background/projectbg-neuroocc.png", 
