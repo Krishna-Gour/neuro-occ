@@ -79,6 +79,9 @@ For a deeper dive into the specific components of the Neuro-OCC system, please r
 *   [Neuro-Symbolic MVP Logic](Neuro_Symbolic_MVP_README.md)
 *   [Human-in-the-Loop Co-Pilot Dashboard](Human_in_the_Loop_Dashboard_README.md)
 *   [Model Context Protocol (MCP) Servers](Model_Context_Protocol_README.md)
+*   [Mamba Predictive Maintenance](Mamba_Predictive_Maintenance_README.md)
+*   [Configuration File (config.yaml)](Config_File_README.md)
+*   [Guardrails Module](Guardrails_README.md)
 
 ## Portfolio Snippet
 
