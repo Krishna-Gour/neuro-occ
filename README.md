@@ -70,15 +70,4 @@ The repository is organized into the following key directories:
 
 ## 6. Further Reading
 
-For a deeper dive into the specific components of the Neuro-OCC system, please refer to the detailed documentation:
-
-*   **[Main Project Overview](README.md)**
-*   [Data Generation Process](Data_Generation_README.md)
-*   [DGCA FDTL Rulebook Implementation](DGCA_FDTL_Rulebook_README.md)
-*   [Reinforcement Learning Environment](RL_Environment_README.md)
-*   [Neuro-Symbolic MVP Logic](Neuro_Symbolic_MVP_README.md)
-*   [Human-in-the-Loop Co-Pilot Dashboard](Human_in_the_Loop_Dashboard_README.md)
-*   [Model Context Protocol (MCP) Servers](Model_Context_Protocol_README.md)
-*   [Mamba Predictive Maintenance](Mamba_Predictive_Maintenance_README.md)
-*   [Configuration File (config.yaml)](Config_File_README.md)
-*   [Guardrails Module](Guardrails_README.md)
+For a deeper dive into the specific components of the Neuro-OCC system, please refer to the folder: documentation.
