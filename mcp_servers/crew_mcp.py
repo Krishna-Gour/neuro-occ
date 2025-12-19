@@ -1,17 +1,25 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 import os
 from typing import List, Dict, Any
 from loguru import logger
+from sqlalchemy.orm import Session
+from database import get_db, Pilot
 
 app = FastAPI(title="Neuro-OCC Crew MCP")
 
-DATA_PATH = "data/pilots.csv"
-
-def load_pilots() -> pd.DataFrame:
-    if not os.path.exists(DATA_PATH):
-        raise FileNotFoundError(f"Data file not found: {DATA_PATH}")
-    return pd.read_csv(DATA_PATH)
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # React dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 async def startup_event():
@@ -27,39 +35,39 @@ async def health_check() -> Dict[str, str]:
     return {"status": "healthy", "service": "crew_mcp"}
 
 @app.get("/pilots")
-async def get_pilots() -> List[Dict[str, Any]]:
+async def get_pilots(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     try:
-        df = load_pilots()
-        logger.info(f"Retrieved {len(df)} pilots")
-        return df.to_dict(orient="records")
-    except FileNotFoundError:
-        logger.error("Pilots data not available")
-        raise HTTPException(status_code=404, detail="Pilots data not available")
+        pilots = db.query(Pilot).all()
+        logger.info(f"Retrieved {len(pilots)} pilots")
+        return [{"pilot_id": p.pilot_id, "name": p.name, "base": p.base, "total_hours": p.total_hours, "fatigue_score": p.fatigue_score, "last_rest_end": p.last_rest_end.isoformat(), "consecutive_night_duties": p.consecutive_night_duties} for p in pilots]
+    except Exception as e:
+        logger.error(f"Error retrieving pilots: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
 
 @app.get("/pilots/{pilot_id}")
-async def get_pilot(pilot_id: str) -> Dict[str, Any]:
+async def get_pilot(pilot_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
     try:
-        df = load_pilots()
-        pilot = df[df['pilot_id'] == pilot_id]
-        if pilot.empty:
+        pilot = db.query(Pilot).filter(Pilot.pilot_id == pilot_id).first()
+        if not pilot:
             logger.warning(f"Pilot {pilot_id} not found")
             raise HTTPException(status_code=404, detail="Pilot not found")
         logger.info(f"Retrieved pilot {pilot_id}")
-        return pilot.iloc[0].to_dict()
-    except FileNotFoundError:
-        logger.error("Pilots data not available")
-        raise HTTPException(status_code=404, detail="Pilots data not available")
+        return {"pilot_id": pilot.pilot_id, "name": pilot.name, "base": pilot.base, "total_hours": pilot.total_hours, "fatigue_score": pilot.fatigue_score, "last_rest_end": pilot.last_rest_end.isoformat(), "consecutive_night_duties": pilot.consecutive_night_duties}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving pilot {pilot_id}: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
 
 @app.get("/pilots/status/fatigue")
-async def get_high_fatigue_pilots(threshold: float = 0.3) -> List[Dict[str, Any]]:
+async def get_high_fatigue_pilots(threshold: float = 0.3, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     try:
-        df = load_pilots()
-        high_fatigue = df[df['fatigue_score'] > threshold]
-        logger.info(f"Found {len(high_fatigue)} pilots with fatigue > {threshold}")
-        return high_fatigue.to_dict(orient="records")
-    except FileNotFoundError:
-        logger.error("Pilots data not available")
-        raise HTTPException(status_code=404, detail="Pilots data not available")
+        pilots = db.query(Pilot).filter(Pilot.fatigue_score > threshold).all()
+        logger.info(f"Found {len(pilots)} pilots with fatigue > {threshold}")
+        return [{"pilot_id": p.pilot_id, "name": p.name, "base": p.base, "total_hours": p.total_hours, "fatigue_score": p.fatigue_score, "last_rest_end": p.last_rest_end.isoformat(), "consecutive_night_duties": p.consecutive_night_duties} for p in pilots]
+    except Exception as e:
+        logger.error(f"Error retrieving high fatigue pilots: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
 
 if __name__ == "__main__":
     import uvicorn

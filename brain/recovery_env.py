@@ -5,6 +5,7 @@ import pandas as pd
 import yaml
 import os
 from dgca_rules.validator import FDTLValidator
+from database import SessionLocal, Flight, Aircraft, Pilot
 
 class AirlineRecoveryEnv(gym.Env):
     """
@@ -22,10 +23,17 @@ class AirlineRecoveryEnv(gym.Env):
         self.weights = self.config['cost_weights']
         self.validator = FDTLValidator(config_path=config_path)
         
-        # Load synthetic data
-        self.flights = pd.read_csv('data/flights.csv')
-        self.aircraft = pd.read_csv('data/aircraft.csv')
-        self.pilots = pd.read_csv('data/pilots.csv')
+        # Load data from database
+        session = SessionLocal()
+        try:
+            self.flights = session.query(Flight).all()
+            self.aircraft = session.query(Aircraft).all()
+            self.pilots = session.query(Pilot).all()
+        finally:
+            session.close()
+        
+        # Convert to DataFrames for compatibility (or keep as objects)
+        # For now, keep as lists of objects
         
         # Action space: 0=No Action, 1=Delay, 2=Cancel, 3=Swap Aircraft, 4=Swap Crew
         self.action_space = spaces.Discrete(5)
@@ -45,7 +53,7 @@ class AirlineRecoveryEnv(gym.Env):
 
     def step(self, action):
         # Current flight being considered for recovery
-        flight = self.flights.iloc[self.current_flight_idx]
+        flight = self.flights[self.current_flight_idx]
         
         delay = 0
         n_cx = 0
@@ -57,18 +65,20 @@ class AirlineRecoveryEnv(gym.Env):
             n_cx = 1
         elif action == 4: # Swap Crew (Check compliance)
             # Simulate a swap and verify
-            pilot_id = flight['pilot_id']
-            # Mock pilot data for validation
-            pilot_data = {
-                "daily_flight_hours": 6,
-                "consecutive_night_duties": 2,
-                "hours_since_last_rest": 12,
-                "weekly_flight_hours": 20
-            }
-            proposed_flight = {"duration_hours": 3}
-            compliant, reason = self.validator.validate_assignment(pilot_data, proposed_flight)
-            if not compliant:
-                v_crew = 1 # Violation!
+            pilot_id = flight.pilot_id
+            # Find pilot data
+            pilot = next((p for p in self.pilots if p.pilot_id == pilot_id), None)
+            if pilot:
+                pilot_data = {
+                    "daily_flight_hours": 6,  # Mock - would need to calculate from flights
+                    "consecutive_night_duties": pilot.consecutive_night_duties,
+                    "hours_since_last_rest": 12,  # Mock
+                    "weekly_flight_hours": 20  # Mock
+                }
+                proposed_flight = {"duration_hours": 3}
+                compliant, reason = self.validator.validate_assignment(pilot_data, proposed_flight)
+                if not compliant:
+                    v_crew = 1 # Violation!
         
         # Hamiltonian Cost Function Calculation
         # C = (w_delay * delay) + (w_cancel * n_cx) + (w_violation * v_crew)

@@ -1,212 +1,518 @@
-import React, { useState, useEffect } from 'react';
-import ReactFlow, { Background, Controls } from 'reactflow';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import ReactFlow, { Background, Controls, MiniMap } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { AlertCircle, CheckCircle, Brain, Plane, ThumbsUp, Users, MapPin } from 'lucide-react';
+import {
+  Activity,
+  AlertCircle,
+  Brain,
+  CheckCircle,
+  Cloud,
+  Loader2,
+  MapPin,
+  Plane,
+  Shield,
+  TrendingUp,
+  Users
+} from 'lucide-react';
 
-const initialNodes = [
-  { id: 'DEL', position: { x: 250, y: 5 }, data: { label: 'Delhi (DEL)' } },
-  { id: 'BOM', position: { x: 100, y: 200 }, data: { label: 'Mumbai (BOM)' } },
-  { id: 'BLR', position: { x: 400, y: 200 }, data: { label: 'Bangalore (BLR)' } },
+const DEFAULT_DISRUPTION = {
+  type: 'weather',
+  severity: 'high',
+  affected_airport: 'DEL',
+  description: 'Delhi fog disruption – 30% capacity reduction'
+};
+
+const SERVICE_ENDPOINTS = [
+  { key: 'crew', name: 'Crew MCP', url: 'http://localhost:8001/health' },
+  { key: 'fleet', name: 'Fleet MCP', url: 'http://localhost:8002/health' },
+  { key: 'reg', name: 'Regulatory MCP', url: 'http://localhost:8003/health' },
+  { key: 'brain', name: 'Brain API', url: 'http://localhost:8004/health' }
 ];
 
-const initialEdges = [
-  { id: 'e1-2', source: 'DEL', target: 'BOM', animated: true, style: { stroke: '#10b981' } },
-  { id: 'e1-3', source: 'DEL', target: 'BLR', animated: true, style: { stroke: '#10b981' } },
+const INITIAL_TIMELINE = [
+  {
+    time: new Date().toLocaleTimeString(),
+    label: 'Systems online',
+    detail: 'All services initialized and awaiting disruption input.'
+  }
 ];
+
+const numberFormatter = new Intl.NumberFormat('en-IN');
+
+const MetricCard = ({ icon: Icon, label, value, sublabel }) => (
+  <div className="metric-card">
+    <div className="metric-icon">
+      <Icon size={22} />
+    </div>
+    <div className="metric-content">
+      <span className="metric-label">{label}</span>
+      <span className="metric-value">{value}</span>
+      {sublabel && <span className="metric-sublabel">{sublabel}</span>}
+    </div>
+  </div>
+);
+
+const ServicePill = ({ label, healthy }) => (
+  <div className={`service-pill ${healthy ? 'healthy' : 'unhealthy'}`}>
+    <span className="indicator" />
+    <span>{label}</span>
+  </div>
+);
+
+const ProposalCard = ({ proposal, onApprove, isApproved }) => {
+  const compliant = proposal.compliant;
+  return (
+    <div className={`proposal-card ${isApproved ? 'approved' : ''}`}>
+      <div className="proposal-header">
+        <div className={`badge ${compliant ? 'badge-success' : 'badge-warning'}`}>
+          {compliant ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+          <span>{compliant ? 'Regulatory Safe' : 'Action Requires Attention'}</span>
+        </div>
+        <span className="proposal-source">{proposal.source}</span>
+      </div>
+      <h4>{proposal.action}</h4>
+      <p className="proposal-reason">{proposal.reason}</p>
+      <div className="proposal-meta">
+        <span>Impact: {proposal.savings}</span>
+        <span>Disruption: {proposal.disruption_type?.toUpperCase()} · {proposal.severity?.toUpperCase()}</span>
+      </div>
+      {proposal.violations && proposal.violations.length > 0 && (
+        <div className="violations">
+          <span>Violations flagged:</span>
+          <ul>
+            {proposal.violations.map((violation, idx) => (
+              <li key={idx}>{violation.description}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <button
+        className="cta-button"
+        disabled={isApproved}
+        onClick={() => onApprove(proposal)}
+      >
+        {isApproved ? 'Approved' : 'Approve Plan'}
+      </button>
+    </div>
+  );
+};
+
+const TimelineItem = ({ item }) => (
+  <div className="timeline-item">
+    <div className="timeline-marker" />
+    <div className="timeline-content">
+      <span className="timeline-time">{item.time}</span>
+      <h5>{item.label}</h5>
+      <p>{item.detail}</p>
+    </div>
+  </div>
+);
 
 function App() {
-  const [thinking, setThinking] = useState(false);
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
   const [proposals, setProposals] = useState([]);
   const [approvedSolution, setApprovedSolution] = useState(null);
-  const [edges, setEdges] = useState(initialEdges);
-  const [systemStatus, setSystemStatus] = useState({
-    pilots: 0,
-    aircraft: 0,
-    flights: 0,
-    serversOnline: false
-  });
+  const [thinking, setThinking] = useState(false);
+  const [systemStatus, setSystemStatus] = useState({ pilots: 0, aircraft: 0, flights: 0, airports: 0 });
+  const [serviceHealth, setServiceHealth] = useState({ crew: false, fleet: false, reg: false, brain: false });
+  const [disruptionTypes, setDisruptionTypes] = useState([]);
+  const [selectedDisruption, setSelectedDisruption] = useState(DEFAULT_DISRUPTION);
+  const [timeline, setTimeline] = useState(INITIAL_TIMELINE);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch system status on load
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const [pilotsRes, aircraftRes] = await Promise.all([
-          fetch('http://localhost:8001/pilots'),
-          fetch('http://localhost:8002/aircraft')
-        ]);
-        const pilots = await pilotsRes.json();
-        const aircraft = await aircraftRes.json();
-        setSystemStatus({
-          pilots: pilots.length,
-          aircraft: aircraft.length,
-          flights: 349, // From generated data
-          serversOnline: true
-        });
-      } catch (error) {
-        console.error('Failed to fetch system status:', error);
-        setSystemStatus(prev => ({ ...prev, serversOnline: false }));
-      }
-    };
-    fetchStatus();
+  const appendTimeline = useCallback((entry) => {
+    setTimeline((prev) => [...prev.slice(-11), entry]);
   }, []);
 
-  const triggerDisruption = () => {
+  const fetchSystemSnapshot = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const requests = [
+        fetch('http://localhost:8003/airports'),
+        fetch('http://localhost:8002/flights'),
+        fetch('http://localhost:8001/pilots'),
+        fetch('http://localhost:8002/aircraft'),
+        fetch('http://localhost:8004/disruption-types')
+      ];
+
+      const healthRequests = SERVICE_ENDPOINTS.map((service) => fetch(service.url));
+
+      const [airportsRes, flightsRes, pilotsRes, aircraftRes, disruptionRes] = await Promise.all(requests);
+      const healthResults = await Promise.allSettled(healthRequests);
+
+      const airports = airportsRes.ok ? await airportsRes.json() : [];
+      const flights = flightsRes.ok ? await flightsRes.json() : [];
+      const pilots = pilotsRes.ok ? await pilotsRes.json() : [];
+      const aircraft = aircraftRes.ok ? await aircraftRes.json() : [];
+      const disruptionTypePayload = disruptionRes.ok ? await disruptionRes.json() : [];
+
+      setDisruptionTypes(disruptionTypePayload);
+
+      const airportNodes = Array.isArray(airports)
+        ? airports.slice(0, 12).map((airport, index) => ({
+            id: airport.code || airport.id || `airport-${index}`,
+            position: {
+              x: (index % 4) * 210 + 40,
+              y: Math.floor(index / 4) * 170 + 40
+            },
+            data: { label: `${airport.name} (${airport.code || airport.id})` },
+            style: {
+              background: '#0f172a',
+              border: '1px solid rgba(148, 163, 184, 0.25)',
+              color: '#e2e8f0',
+              borderRadius: 12,
+              padding: 12,
+              fontSize: 12
+            }
+          }))
+        : [];
+
+      const filteredFlights = Array.isArray(flights) ? flights : [];
+      const flightEdges = filteredFlights.slice(0, 16)
+        .map((flight, index) => ({
+          id: `f-${index}`,
+          source: flight.origin,
+          target: flight.destination,
+          label: flight.flight_id || flight.flight_number,
+          animated: true,
+          style: { stroke: '#38bdf8', strokeWidth: 2 },
+          labelStyle: { fill: '#94a3b8', fontSize: 10 }
+        }))
+        .filter((edge) => airportNodes.find((node) => node.id === edge.source) && airportNodes.find((node) => node.id === edge.target));
+
+      setNodes(airportNodes);
+      setEdges(flightEdges);
+
+      setSystemStatus({
+        pilots: pilots.length,
+        aircraft: aircraft.length,
+        flights: filteredFlights.length,
+        airports: airports.length
+      });
+
+      const healthSnapshot = SERVICE_ENDPOINTS.reduce((acc, service, idx) => {
+        acc[service.key] = healthResults[idx].status === 'fulfilled' && healthResults[idx].value.ok;
+        return acc;
+      }, {});
+      setServiceHealth(healthSnapshot);
+    } catch (err) {
+      console.error('Failed to load system snapshot', err);
+      setError('Unable to connect to one or more backend services.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSystemSnapshot();
+    const interval = setInterval(fetchSystemSnapshot, 60000);
+    return () => clearInterval(interval);
+  }, [fetchSystemSnapshot]);
+
+  useEffect(() => {
+    if (disruptionTypes.length === 0) {
+      return;
+    }
+    const activeType = disruptionTypes.find((item) => item.type === selectedDisruption.type);
+    if (activeType && !activeType.severities?.includes(selectedDisruption.severity)) {
+      setSelectedDisruption({
+        ...selectedDisruption,
+        severity: activeType.severities?.[0] || selectedDisruption.severity
+      });
+    }
+  }, [disruptionTypes, selectedDisruption]);
+
+  const severityOptions = useMemo(() => {
+    const activeType = disruptionTypes.find((item) => item.type === selectedDisruption.type);
+    return activeType?.severities || ['low', 'medium', 'high'];
+  }, [disruptionTypes, selectedDisruption.type]);
+
+  const metrics = useMemo(() => ([
+    { icon: Users, label: 'Pilots', value: numberFormatter.format(systemStatus.pilots) },
+    { icon: Plane, label: 'Aircraft', value: numberFormatter.format(systemStatus.aircraft) },
+    { icon: Activity, label: 'Flights', value: numberFormatter.format(systemStatus.flights) },
+    { icon: MapPin, label: 'Airports', value: numberFormatter.format(systemStatus.airports) }
+  ]), [systemStatus]);
+
+  const triggerDisruption = async () => {
+    appendTimeline({
+      time: new Date().toLocaleTimeString(),
+      label: 'Disruption injected',
+      detail: `${selectedDisruption.type.toUpperCase()} at ${selectedDisruption.affected_airport} (${selectedDisruption.severity.toUpperCase()})`
+    });
+
+    setThinking(true);
     setProposals([]);
     setApprovedSolution(null);
-    setEdges(initialEdges.map(e => ({ ...e, style: { stroke: '#ef4444' }, animated: false })));
-    
-    // AI starts thinking and generates multiple proposals
-    setThinking(true);
-    setTimeout(() => {
-      setThinking(false);
-      setProposals([
+
+    const highlightedEdges = edges.map((edge) => {
+      const isAffected = edge.source === selectedDisruption.affected_airport || edge.target === selectedDisruption.affected_airport;
+      return {
+        ...edge,
+        style: {
+          ...(edge.style || {}),
+          stroke: isAffected ? '#f97316' : '#38bdf8',
+          strokeWidth: isAffected ? 3 : 2
+        },
+        animated: isAffected
+      };
+    });
+    setEdges(highlightedEdges);
+
+    try {
+      const response = await fetch('http://localhost:8004/generate-recovery-proposals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selectedDisruption)
+      });
+
+      if (!response.ok) {
+        throw new Error('Brain API returned an error');
+      }
+
+      const data = await response.json();
+      setProposals(data);
+      appendTimeline({
+        time: new Date().toLocaleTimeString(),
+        label: 'Recovery strategies generated',
+        detail: `${data.length} candidate plans prepared by Neuro-OCC.`
+      });
+    } catch (err) {
+      console.error('Failed to generate proposals', err);
+      const fallback = [
         {
           id: 1,
-          action: "Swap VT-ICD (DEL-BOM) with VT-IIJ (BLR-DEL)",
-          reason: "Prevents Rule B FDTL violation for Pilot Sharma; Minor delay for 6E-105",
-          savings: "₹4.5L",
-          compliant: true
-        },
-        {
-          id: 2,
-          action: "Delay flight 6E-101 (DEL-BOM) by 90 mins",
-          reason: "Crew rest extension; Impact on connecting passengers",
-          savings: "₹2.0L",
-          compliant: true
-        },
-        {
-          id: 3,
-          action: "Cancel flight 6E-101 (DEL-BOM)",
-          reason: "High passenger compensation, but prevents cascading delays",
-          savings: "-₹10.0L (cost)",
-          compliant: true
-        },
-        {
-          id: 4,
-          action: "Assign Pilot X who has exceeded FDTL (Non-compliant example)",
-          reason: "Exceeds max daily flight time of 8.0 hours.",
-          savings: "N/A",
-          compliant: false
+          action: 'Delay departures by 120 minutes (Fallback)',
+          reason: 'Standard weather recovery protocol enacted automatically.',
+          savings: '₹450K',
+          compliant: true,
+          violations: [],
+          source: 'Fallback',
+          disruption_type: selectedDisruption.type,
+          severity: selectedDisruption.severity
         }
-      ]);
-      // No immediate edge change, waiting for human approval
-    }, 3000);
+      ];
+      setProposals(fallback);
+      appendTimeline({
+        time: new Date().toLocaleTimeString(),
+        label: 'Fallback plans applied',
+        detail: 'LLM unavailable; generated deterministic contingency playbook.'
+      });
+    } finally {
+      setThinking(false);
+    }
   };
 
-  const approveProposal = (proposal) => {
+  const handleApprove = (proposal) => {
     setApprovedSolution(proposal);
-    setProposals([]); // Clear proposals once one is approved
-    setEdges(initialEdges.map(e => ({ ...e, style: { stroke: '#10b981' }, animated: true })));
-    // In a real system, this would trigger backend execution
-    console.log(`Human approved proposal: ${proposal.action}`);
+    appendTimeline({
+      time: new Date().toLocaleTimeString(),
+      label: 'Plan approved',
+      detail: `Authorized action: ${proposal.action}`
+    });
   };
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0f172a', color: 'white', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ padding: '1rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Brain color="#8b5cf6" /> Neuro-OCC 2.0 <span style={{ fontSize: '0.9rem', color: '#94a3b8', marginLeft: '1rem' }}>(Co-pilot Mode)</span>
-        </h1>
-        <button 
-          onClick={triggerDisruption}
-          style={{ background: '#ef4444', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}
-        >
-          Inject Disruption (Delhi Fog)
-        </button>
+    <div className="app-shell">
+      <header className="app-header">
+        <div>
+          <h1><Brain size={24} /> Neuro-OCC Operations Control</h1>
+          <p>Federated neuro-symbolic decisioning for disruption recovery.</p>
+        </div>
+        <div className="header-status">
+          <Shield size={18} />
+          <span>
+            {Object.values(serviceHealth).every(Boolean)
+              ? 'All services healthy'
+              : 'Service connectivity degraded'}
+          </span>
+        </div>
       </header>
 
-      <div style={{ flex: 1, position: 'relative' }}>
-        <ReactFlow nodes={initialNodes} edges={edges}>
-          <Background color="#334155" gap={20} />
-          <Controls />
-        </ReactFlow>
+      {error && (
+        <div className="alert-banner">
+          <AlertCircle size={18} />
+          <span>{error}</span>
+        </div>
+      )}
 
-        {/* HUD */}
-        <div style={{ position: 'absolute', top: '1rem', right: '1rem', width: '350px', background: 'rgba(30, 41, 59, 0.9)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #334155' }}>
-          <h2 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {thinking ? <Brain className="animate-pulse" /> : <AlertCircle />}
-            System Status
-          </h2>
-          
-          <div style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <Users size={16} color={systemStatus.serversOnline ? '#10b981' : '#ef4444'} />
-              <span>Pilots: {systemStatus.pilots}</span>
+      <main className="app-main">
+        <section className="metric-grid">
+          {metrics.map((metric) => (
+            <MetricCard key={metric.label} {...metric} />
+          ))}
+        </section>
+
+        <section className="content-grid">
+          <div className="flow-card panel-card">
+            <div className="panel-header">
+              <h2>Network Situation Picture</h2>
+              <span className="panel-subtitle">Real-time airline graph with disruption overlays</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <Plane size={16} color={systemStatus.serversOnline ? '#10b981' : '#ef4444'} />
-              <span>Aircraft: {systemStatus.aircraft}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <MapPin size={16} color={systemStatus.serversOnline ? '#10b981' : '#ef4444'} />
-              <span>Flights: {systemStatus.flights}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <CheckCircle size={16} color={systemStatus.serversOnline ? '#10b981' : '#ef4444'} />
-              <span>MCP Servers: {systemStatus.serversOnline ? 'Online' : 'Offline'}</span>
+            <div className="flow-container">
+              {nodes.length === 0 && !loading ? (
+                <div className="empty-state">
+                  <Cloud size={20} />
+                  <span>No network data available</span>
+                </div>
+              ) : (
+                <ReactFlow nodes={nodes} edges={edges} fitView minZoom={0.5} maxZoom={1.5}>
+                  <MiniMap style={{ background: '#020617' }} />
+                  <Controls />
+                  <Background gap={20} color="#1e293b" />
+                </ReactFlow>
+              )}
+              {loading && (
+                <div className="loading-overlay">
+                  <Loader2 className="spin" size={22} />
+                  <span>Synchronizing network state...</span>
+                </div>
+              )}
             </div>
           </div>
-          
-          {thinking && (
-            <div style={{ color: '#94a3b8' }}>
-              <p>Evaluating 1,000 simulations...</p>
-              <p>Querying Crew MCP...</p>
-              <p>Checking DGCA 2025 Compliance...</p>
-              <p>Generating optimal recovery proposals...</p>
-            </div>
-          )}
 
-          {proposals.length > 0 && approvedSolution === null && (
-            <div>
-              <p style={{ fontWeight: 'bold', color: '#8b5cf6', marginBottom: '0.5rem' }}>Human-in-the-Loop: Review Proposals</p>
-              {proposals.filter(p => p.compliant).map(proposal => (
-                <div key={proposal.id} style={{ border: '1px solid #334155', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '0.5rem', background: '#1e293b' }}>
-                  <p style={{ fontWeight: 'bold', color: '#e2e8f0' }}>{proposal.action}</p>
-                  <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Reason: {proposal.reason}</p>
-                  <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Estimated Impact: {proposal.savings}</p>
-                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: proposal.compliant ? '#10b981' : '#ef4444' }}>
-                     {proposal.compliant ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-                     <span style={{ fontSize: '0.8rem' }}>Symbolic Verifier: {proposal.compliant ? 'PASSED' : 'FAILED'}</span>
-                  </div>
-                  {proposal.compliant && (
-                    <button 
-                      onClick={() => approveProposal(proposal)}
-                      style={{ marginTop: '0.75rem', background: '#10b981', color: 'white', padding: '0.4rem 0.8rem', borderRadius: '0.4rem', fontWeight: 'bold', cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                    >
-                      <ThumbsUp size={14} /> Approve Plan
-                    </button>
-                  )}
+          <div className="side-panel">
+            <div className="panel-card">
+              <div className="panel-header">
+                <h2>Inject Disruption</h2>
+                <span className="panel-subtitle">Simulate real-world irregular operations</span>
+              </div>
+              <div className="form-grid">
+                <label>
+                  Disruption Type
+                  <select
+                    value={selectedDisruption.type}
+                    onChange={(e) => setSelectedDisruption((prev) => ({ ...prev, type: e.target.value }))}
+                  >
+                    {disruptionTypes.length > 0
+                      ? disruptionTypes.map((item) => (
+                          <option key={item.type} value={item.type}>
+                            {item.name}
+                          </option>
+                        ))
+                      : ['weather', 'technical', 'crew', 'security', 'air_traffic'].map((type) => (
+                          <option key={type} value={type}>
+                            {type.replace('_', ' ')}
+                          </option>
+                        ))}
+                  </select>
+                </label>
+                <label>
+                  Severity
+                  <select
+                    value={selectedDisruption.severity}
+                    onChange={(e) => setSelectedDisruption((prev) => ({ ...prev, severity: e.target.value }))}
+                  >
+                    {severityOptions.map((level) => (
+                      <option key={level} value={level}>
+                        {level.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Impacted Airport
+                  <input
+                    value={selectedDisruption.affected_airport}
+                    onChange={(e) => setSelectedDisruption((prev) => ({ ...prev, affected_airport: e.target.value.toUpperCase() }))}
+                    placeholder="e.g. DEL"
+                  />
+                </label>
+                <label className="form-wide">
+                  Operator Notes
+                  <textarea
+                    rows={3}
+                    value={selectedDisruption.description}
+                    onChange={(e) => setSelectedDisruption((prev) => ({ ...prev, description: e.target.value }))}
+                  />
+                </label>
+                <button className="cta-button primary" onClick={triggerDisruption} disabled={thinking}>
+                  {thinking ? 'Computing recovery paths...' : 'Generate Recovery Plans'}
+                </button>
+              </div>
+              {disruptionTypes.length > 0 && (
+                <div className="helper">
+                  <span>Common actions:</span>
+                  <ul>
+                    {(disruptionTypes.find((item) => item.type === selectedDisruption.type)?.common_actions || []).map((action) => (
+                      <li key={action}>{action}</li>
+                    ))}
+                  </ul>
                 </div>
-              ))}
-                {/* Display non-compliant proposals separately or with a warning */}
-                {proposals.filter(p => !p.compliant).map(proposal => (
-                    <div key={proposal.id} style={{ border: '1px solid #ef4444', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '0.5rem', background: '#450a0a' }}>
-                        <p style={{ fontWeight: 'bold', color: '#ef4444' }}>{proposal.action} (Non-Compliant)</p>
-                        <p style={{ fontSize: '0.8rem', color: '#fca5a5', marginBottom: '0.5rem' }}>Reason: {proposal.reason}</p>
-                        <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#ef4444' }}>
-                           <AlertCircle size={16} />
-                           <span style={{ fontSize: '0.8rem' }}>Symbolic Verifier: FAILED</span>
-                        </div>
-                    </div>
-                ))}
+              )}
             </div>
-          )}
 
-          {approvedSolution && (
-            <div style={{ borderLeft: '4px solid #10b981', paddingLeft: '0.5rem' }}>
-              <p style={{ fontWeight: 'bold', color: '#10b981' }}>Recovery Plan Approved & Executed!</p>
-              <p style={{ fontSize: '0.9rem' }}>Action: {approvedSolution.action}</p>
-              <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{approvedSolution.reason}</p>
-              <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                 <CheckCircle size={16} color="#10b981" />
-                 <span style={{ fontSize: '0.8rem' }}>Symbolic Verifier: PASSED</span>
+            <div className="panel-card">
+              <div className="panel-header">
+                <h2>Service Health</h2>
+                <span className="panel-subtitle">Core microservices powering Neuro-OCC</span>
+              </div>
+              <div className="service-grid">
+                {SERVICE_ENDPOINTS.map((service) => (
+                  <ServicePill key={service.key} label={service.name} healthy={serviceHealth[service.key]} />
+                ))}
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="panel-card proposals-section">
+          <div className="panel-header inline">
+            <div>
+              <h2>Recommended Recovery Strategies</h2>
+              <span className="panel-subtitle">System 2 reasoning pipeline output</span>
+            </div>
+            {thinking && (
+              <span className="thinking">
+                <Loader2 className="spin" size={16} />
+                Evaluating search tree...
+              </span>
+            )}
+          </div>
+
+          {proposals.length === 0 && !thinking && (
+            <div className="empty-state">
+              <TrendingUp size={20} />
+              <span>No proposals generated yet.</span>
+            </div>
           )}
-        </div>
-      </div>
+
+          <div className="proposal-grid">
+            {proposals.map((proposal) => (
+              <ProposalCard
+                key={proposal.id}
+                proposal={proposal}
+                onApprove={handleApprove}
+                isApproved={approvedSolution?.id === proposal.id}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="panel-card timeline-section">
+          <div className="panel-header">
+            <h2>Operations Timeline</h2>
+            <span className="panel-subtitle">Chronological log of Neuro-OCC reasoning</span>
+          </div>
+          <div className="timeline-list">
+            {timeline.map((item, idx) => (
+              <TimelineItem key={`${item.time}-${idx}`} item={item} />
+            ))}
+          </div>
+        </section>
+      </main>
+
+      <footer className="app-footer">
+        <span>Neuro-OCC • Federated Autonomous Recovery System</span>
+        <span>LLM x Symbolic x RL x MCP</span>
+      </footer>
     </div>
   );
 }
 
 export default App;
+

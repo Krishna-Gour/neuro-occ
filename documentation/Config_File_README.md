@@ -1,17 +1,52 @@
-# Documentation: Configuration File (config.yaml)
+# Configuration File (config.yaml) - Neuro-OCC 2.0
 
-## 1. Purpose: Centralized Configuration Management
+## 1. Purpose: Centralized Configuration for Production-Ready System
 
-The `config.yaml` file serves as the single source of truth for all configurable parameters in the Neuro-OCC system. This separation of configuration from code allows for easy customization, experimentation, and deployment across different environments without modifying the source code.
+The `config.yaml` file serves as the single source of truth for all configurable parameters in the Neuro-OCC 2.0 production system. This separation of configuration from code enables automated deployment, easy scaling, and environment-specific customization without modifying source code.
 
-## 2. Structure Overview
+## 2. Current System Status
 
-The configuration is organized into logical sections:
+**Neuro-OCC 2.0** is a fully operational neuro-symbolic AI system for airline operations control, featuring:
+- Automated deployment via `./start.sh`
+- Real-time disruption management
+- DGCA FDTL compliance validation
+- Human-in-the-loop dashboard
+- Production monitoring and health checks
+
+## 3. Structure Overview
+
+The configuration is organized into logical sections for the complete system:
 
 ```yaml
 # ==============================================================================
-# CONFIGURATION FOR NEURO-OCC SYNTHETIC DATA GENERATION
+# NEURO-OCC 2.0 PRODUCTION CONFIGURATION
 # ==============================================================================
+
+# --- System Environment ---
+environment: production  # development | staging | production
+log_level: INFO
+
+# --- Service Configuration ---
+services:
+  brain_api:
+    host: localhost
+    port: 8004
+  dashboard:
+    host: localhost
+    port: 3000
+  mcp_servers:
+    crew: 8001
+    fleet: 8002
+    regulatory: 8003
+
+# --- LLM Configuration ---
+llm:
+  provider: openai  # openai | anthropic | local
+  model: gpt-4-turbo-preview
+  api_key: ${OPENAI_API_KEY}
+  temperature: 0.7
+  max_tokens: 2000
+  timeout: 30
 
 # --- Simulation Parameters ---
 random_seed: 42
@@ -49,8 +84,28 @@ cost_weights:
   w_cancel: 500.0
   w_violation: 1000.0
 ```
+```
 
-## 3. Section Details
+## 4. Section Details
+
+### System Environment
+- **`environment`**: Defines the deployment context (development/staging/production)
+- **`log_level`**: Logging verbosity (DEBUG/INFO/WARNING/ERROR)
+
+### Service Configuration
+Defines all microservices in the Neuro-OCC system:
+- **`brain_api`**: Central AI orchestration service (Port 8004)
+- **`dashboard`**: React-based human-in-the-loop interface (Port 3000)
+- **`mcp_servers`**: Model Context Protocol servers for real-time data access
+
+### LLM Configuration
+AI model settings for the neuro-symbolic system:
+- **`provider`**: AI service provider (OpenAI, Anthropic, or local models)
+- **`model`**: Specific model version for optimal performance
+- **`api_key`**: Secure API key management via environment variables
+- **`temperature`**: Creativity vs consistency balance (0.0-1.0)
+- **`max_tokens`**: Response length limits
+- **`timeout`**: Request timeout in seconds
 
 ### Simulation Parameters
 - **`random_seed`**: Ensures reproducible results across runs. Set to 42 for consistent data generation.
@@ -87,7 +142,29 @@ These weights determine the RL agent's priorities:
 - **`w_cancel`**: Cost penalty for flight cancellation (500.0).
 - **`w_violation`**: High penalty for regulatory violations (1000.0).
 
-## 4. How to Modify
+## 5. Automated Deployment Integration
+
+The configuration file is automatically loaded during system startup:
+
+```bash
+./start.sh  # Loads config.yaml and starts all services
+```
+
+### Environment Variables
+Sensitive information like API keys should be set as environment variables:
+```bash
+export OPENAI_API_KEY="your-api-key-here"
+./start.sh
+```
+
+### Configuration Validation
+The startup script validates configuration before deployment:
+- Checks for required API keys
+- Validates port availability
+- Ensures data generation parameters are reasonable
+- Verifies DGCA compliance rules are properly defined
+
+## 6. How to Modify
 
 ### For Different Scenarios
 - **Larger Fleet**: Increase `num_airports`, `num_aircraft`, `num_pilots`.
@@ -107,7 +184,7 @@ For different environments (development, staging, production), create separate c
 
 Load them by passing the path to components that use configuration.
 
-## 5. Dependencies
+## 7. Dependencies
 
 The config is loaded using PyYAML:
 ```python
@@ -120,3 +197,13 @@ Ensure `pyyaml` is installed:
 ```bash
 pip install pyyaml
 ```
+
+## 8. Production Monitoring
+
+Configuration changes are logged and monitored:
+- Configuration validation results
+- Service startup parameters
+- Performance tuning adjustments
+- Compliance rule modifications
+
+All changes are tracked for audit and rollback capabilities.

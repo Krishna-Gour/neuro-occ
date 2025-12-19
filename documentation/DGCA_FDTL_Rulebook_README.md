@@ -1,14 +1,23 @@
-# Documentation: DGCA FDTL Rulebook - The Symbolic Verifier
+# DGCA FDTL Rulebook - Production-Ready Symbolic Verifier
 
-## 1. Purpose: Ensuring Safety and Compliance
+## 1. Purpose: Ensuring Safety and Compliance in Production
 
-In the high-stakes environment of airline operations, safety and regulatory compliance are non-negotiable. The Neuro-OCC system is designed to propose creative solutions to disruptions, but these solutions *must* adhere to the strict rules set by aviation authorities.
+In the high-stakes environment of airline operations, safety and regulatory compliance are non-negotiable. **Neuro-OCC 2.0** is a production-ready system that proposes creative solutions to disruptions, but these solutions *must* adhere to the strict rules set by aviation authorities.
 
 The **Symbolic Verifier** component acts as the system's "System 2" logical reasoning engine. Its sole purpose is to take a proposed crew assignment (e.g., assigning a pilot to a new flight) and rigorously check it against a codified version of the DGCA (Directorate General of Civil Aviation) regulations for Flight and Duty Time Limitations (FDTL).
 
 This ensures that no matter what solution the creative LLM "Proposer" suggests, the system will never execute a plan that is illegal or unsafe.
 
-## 2. Why a Symbolic Approach?
+## 2. Production System Integration
+
+The DGCA validator is fully integrated into the Neuro-OCC 2.0 production pipeline:
+
+- **Automated Validation**: Every AI-generated recovery proposal is automatically validated
+- **Real-time Compliance**: Integrated with MCP servers for live pilot data access
+- **Audit Trail**: All validation decisions are logged for regulatory compliance
+- **Health Monitoring**: Validator performance is monitored in production dashboards
+
+## 3. Why a Symbolic Approach?
 
 While LLMs are powerful, they can be prone to errors or "hallucinations." For regulatory compliance, we cannot tolerate any ambiguity. A symbolic, rule-based approach offers critical advantages:
 
@@ -17,7 +26,7 @@ While LLMs are powerful, they can be prone to errors or "hallucinations." For re
 *   **Reliability**: The verifier's logic is deterministic. Given the same input, it will always produce the same output, which is essential for a safety-critical system.
 *   **Updatability**: When regulations change, the specific rules can be updated in a targeted manner without retraining an entire model.
 
-## 3. Key Components
+## 4. Key Components
 
 *   **`dgca_rules/validator.py`**: This file contains the `FDTLValidator` class. It is a self-contained library that implements the core logic for checking assignments against the DGCA rules defined in the project's `config.yaml`.
 
@@ -25,7 +34,9 @@ While LLMs are powerful, they can be prone to errors or "hallucinations." For re
 
 *   **`config.yaml`**: This file stores the specific numerical limits for the FDTL rules. This separation of logic and data makes it easy to tweak the rules (e.g., if regulations are updated) without changing the Python code.
 
-## 4. Implemented DGCA FDTL Rules
+*   **MCP Integration**: The validator connects to the Regulatory MCP server (Port 8003) for real-time rule updates and compliance reporting.
+
+## 5. Implemented DGCA FDTL Rules
 
 The current version of the `FDTLValidator` implements the following key rules based on the values in `config.yaml`:
 
@@ -38,7 +49,32 @@ The current version of the `FDTLValidator` implements the following key rules ba
 | **Max Daily Duty Period**   | `max_daily_duty_period: 12.0`      | (Defined in config, for future use) The total duty period for a pilot in a day.                          |
 | **Minimum Rest Period**     | `min_rest_period: 12.0`            | (Defined in config, for future use) The minimum rest a pilot must have between duty periods.           |
 
-## 5. How It Works
+## 6. Production Architecture
+
+### Service Integration
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Brain API     │───▶│  DGCA Validator  │───▶│ Regulatory MCP  │
+│   (Port 8004)   │    │                  │    │   (Port 8003)   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                              │
+                              ▼
+                       ┌─────────────────┐
+                       │   Compliance    │
+                       │   Dashboard     │
+                       │   (Port 3000)   │
+                       └─────────────────┘
+```
+
+### Validation Pipeline
+1. **AI Proposal Generation**: LLM creates recovery plan
+2. **Real-time Data Fetch**: Query MCP servers for current pilot status
+3. **Rule Validation**: Apply DGCA FDTL rules deterministically
+4. **Compliance Report**: Generate detailed violation explanations
+5. **Human Review**: Present validated proposals in dashboard
+6. **Audit Logging**: Record all validation decisions
+
+## 7. How It Works
 
 The `FDTLValidator` class has a simple interface.
 
@@ -50,17 +86,17 @@ The `FDTLValidator` class has a simple interface.
     *   `(True, "Compliant")` if the assignment is valid.
     *   `(False, "Reason for violation")` if the assignment breaks one of the rules.
 
-## 6. How to Use the Validator
+## 8. Production Usage Example
 
-Here is a basic example of how the validator would be used within the Neuro-OCC system:
+Here is how the validator is used within the Neuro-OCC 2.0 production system:
 
 ```python
 from dgca_rules.validator import FDTLValidator
 
-# 1. Initialize the validator
+# 1. Initialize the validator (done automatically by startup script)
 validator = FDTLValidator(config_path='config.yaml')
 
-# 2. Define the pilot's current state
+# 2. Define the pilot's current state (fetched from MCP server)
 pilot_state = {
     'daily_flight_hours': 7.0,
     'weekly_flight_hours': 30.0,
@@ -83,3 +119,22 @@ else:
     print(f"Assignment is ILLEGAL: {reason}")
     # Output: Assignment is ILLEGAL: Exceeds max daily flight time of 8.0 hours.
 ```
+
+## 9. Production Monitoring
+
+The DGCA validator includes comprehensive monitoring:
+
+- **Performance Metrics**: Validation response times and throughput
+- **Error Tracking**: Failed validations and system errors
+- **Compliance Reports**: Daily/weekly regulatory compliance summaries
+- **Audit Logs**: Complete trail of all validation decisions
+
+## 10. Regulatory Updates
+
+When DGCA regulations change:
+
+1. Update `config.yaml` with new limits
+2. Run test suite to validate changes
+3. Deploy updated configuration via `./start.sh`
+4. Monitor system behavior in production
+5. Generate compliance reports for regulatory bodies

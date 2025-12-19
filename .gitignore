@@ -142,4 +142,6 @@ yarn-error.log*
 package-lock.json
 
 #Github Readme
-README.md
+README.md*.db
+.runtime_logs/
+.neuro_occ_runtime/
