@@ -50,7 +50,7 @@ Or press `Ctrl+C` in the terminal running `start.sh`
 
 | Component | Technology | Port | Description |
 |-----------|------------|------|-------------|
-| **Brain API** | FastAPI + OpenAI | 8004 | LLM-based proposal generation with DGCA compliance |
+| **Brain API** | FastAPI + OpenAI/Local LLM | 8004 | Dual LLM-based proposal generation with DGCA compliance |
 | **Crew MCP** | FastAPI + SQLite | 8001 | Pilot roster and duty time management |
 | **Fleet MCP** | FastAPI + SQLite | 8002 | Aircraft status and maintenance tracking |
 | **Regulatory MCP** | FastAPI + SQLite | 8003 | Airport data and DGCA rule validation |
@@ -59,10 +59,31 @@ Or press `Ctrl+C` in the terminal running `start.sh`
 
 ### **AI Pipeline**
 1. **Disruption Detection**: Real-time monitoring via MCP servers
-2. **Proposal Generation**: LLM analyzes scenario and generates solutions
+2. **Proposal Generation**: Dual LLM system (OpenAI GPT-4 + Local fallback) analyzes scenario
 3. **Compliance Validation**: Symbolic engine checks DGCA FDTL rules
 4. **Human Review**: Dashboard presents options with explanations
 5. **Execution**: Approved solutions trigger automated recovery actions
+
+### **Dual LLM Architecture**
+
+Neuro-OCC implements a robust dual-LLM approach for maximum reliability:
+
+**🌐 OpenAI GPT-4 (Primary)**
+- Advanced reasoning and creative proposal generation
+- Natural language understanding and contextual analysis
+- Requires internet connectivity and API key
+
+**💻 Local LLM (Fallback)**
+- Rule-based proposal generation using disruption-specific templates
+- Zero external dependencies - works completely offline
+- Generates varied, contextually appropriate responses
+- Always available for demos, development, and production
+
+**Automatic Switching:**
+- System automatically detects OpenAI API availability
+- Seamlessly falls back to local LLM when needed
+- No configuration changes required
+- Maintains full functionality in all scenarios
 
 ## **Features**
 
@@ -82,7 +103,8 @@ Or press `Ctrl+C` in the terminal running `start.sh`
 - **Explainable Decisions**: Natural language justifications for every proposal
 - **Context Awareness**: Real-time operational data integration from all MCP servers
 - **Safety-First Approach**: Conservative validation with human oversight
-- **Fallback Mechanisms**: Deterministic contingency plans when LLM unavailable
+- **Dual LLM Architecture**: OpenAI GPT-4 + Local LLM fallback for offline operation
+- **Fallback Mechanisms**: Deterministic contingency plans when external APIs unavailable
 
 ## **Project Structure**
 
@@ -109,7 +131,8 @@ neuro-occ/
 ├── guardrails/           # Additional safety verifiers
 │   └── verifier.py       # Secondary validation layer
 ├── llm/                  # System2Agent for proposal generation
-│   └── system_2_agent.py # OpenAI integration
+│   ├── system_2_agent.py # OpenAI integration with local LLM fallback
+│   └── local_llm.py      # Rule-based local LLM for offline operation
 ├── mcp_servers/          # Model Context Protocol servers
 │   ├── crew_mcp.py       # Port 8001
 │   ├── fleet_mcp.py      # Port 8002

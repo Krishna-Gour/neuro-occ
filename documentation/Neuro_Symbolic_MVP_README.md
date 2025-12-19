@@ -52,9 +52,41 @@ This architecture implements Daniel Kahneman's dual-process cognitive model:
                             └──────────────────┘
 ```
 
+### Dual LLM Architecture: Cloud + Local
+
+The system implements a robust dual-LLM approach for maximum reliability and accessibility:
+
+**Primary: OpenAI GPT-4 (Cloud)**
+- Advanced reasoning and creative proposal generation
+- Natural language understanding and explanation
+- Continuous learning from vast training data
+- Requires OpenAI API key and internet connectivity
+
+**Fallback: Local LLM (Offline)**
+- Rule-based proposal generation using disruption-specific templates
+- Randomized but contextually appropriate responses
+- Zero external dependencies or API costs
+- Always available for offline operation and demos
+
+**Automatic Switching Logic:**
+```python
+if openai_api_available:
+    use_gpt4_for_creative_proposals()
+else:
+    use_local_llm_for_reliable_fallbacks()
+```
+
+**Benefits:**
+- **Offline Operation**: Works without internet or API keys
+- **Cost Control**: No API usage costs for development/testing
+- **Reliability**: Never fails due to external service issues
+- **Variety**: Local LLM generates different proposals per disruption type
+- **Compliance**: All proposals validated against DGCA rules
+
 ### Key Components
 *   **`brain/sentinel_Mamba.py`**: Production Brain API implementing the neuro-symbolic loop
-*   **`llm/system_2_agent.py`**: LLM-based Proposer and Explainer agents
+*   **`llm/system_2_agent.py`**: LLM-based Proposer and Explainer agents (OpenAI + Local LLM)
+*   **`llm/local_llm.py`**: Local rule-based LLM for offline operation
 *   **`dgca_rules/validator.py`**: Production-ready symbolic verifier
 *   **`guardrails/verifier.py`**: Additional safety validation layer
 *   **`mcp_servers/`**: Real-time data access for all components

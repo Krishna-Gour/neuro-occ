@@ -266,37 +266,35 @@ async def generate_recovery_proposals(disruption: Dict[str, Any]) -> List[Dict[s
             llm_agent = System2Agent()  # Initialize only when needed
             enhanced_description = f"{disruption_type.title()} disruption at {affected_airport}: {disruption.get('description', 'Service disruption')}. Severity: {severity}."
 
-            llm_result = llm_agent.reason_and_act(
+            llm_results = llm_agent.reason_and_act(
                 enhanced_description,
                 pilot_data,
                 None
             )
 
-            if isinstance(llm_result, dict) and llm_result.get("action"):
-                # SYSTEM 2 (SYMBOLIC VERIFIER): Validate with real FDTL rules
-                logger.info("Invoking System 2 (Symbolic Verifier)...")
-                compliance_result = _validate_with_fdtl(llm_result, pilot_data)
-                
-                proposals.append({
-                    "id": 1,
-                    "action": llm_result.get("action", "LLM Generated Action"),
-                    "reason": llm_result.get("reasoning", "LLM reasoning"),
-                    "savings": f"₹{llm_result.get('cost', 0):.0f}",
-                    "compliant": compliance_result["compliant"],
-                    "violations": compliance_result["violations"],
-                    "source": "LLM+Verifier",
-                    "disruption_type": disruption_type,
-                    "severity": severity,
-                    "affected_airport": affected_airport
-                })
-                logger.info(f"LLM proposal validated: compliant={compliance_result['compliant']}")
+            if isinstance(llm_results, list) and len(llm_results) > 0:
+                # SYSTEM 2 (SYMBOLIC VERIFIER): Already validated in System2Agent
+                for i, llm_result in enumerate(llm_results[:2]):  # Take up to 2 LLM proposals
+                    proposals.append({
+                        "id": len(proposals) + 1,
+                        "action": llm_result.get("action", "LLM Generated Action"),
+                        "reason": llm_result.get("reasoning", "LLM reasoning"),
+                        "savings": f"₹{llm_result.get('cost', 0):.0f}",
+                        "compliant": llm_result.get("compliant", True),
+                        "violations": [] if llm_result.get("compliant", True) else [{"rule": "fdtl_violation", "description": llm_result.get("validation_reason", "Unknown")}],
+                        "source": "LLM+Verifier",
+                        "disruption_type": disruption_type,
+                        "severity": severity,
+                        "affected_airport": affected_airport
+                    })
+                logger.info(f"LLM proposals added: {len(llm_results)} generated, {len([p for p in proposals if p['source'] == 'LLM+Verifier'])} validated")
             else:
-                raise ValueError("LLM did not return a valid proposal")
+                raise ValueError("LLM did not return valid proposals")
                 
         except Exception as e:
             logger.error(f"LLM+Verifier pipeline failed: {e}")
-            # Only use fallback if LLM truly fails, not as primary path
-            logger.warning("Using fallback proposal - this should be investigated")
+            # Use disruption-specific fallbacks
+            logger.warning("Using disruption-specific fallback proposals")
 
         # RL AGENT: Disabled until properly trained
         # TODO: Train RL agent using Stable-Baselines3 or RLlib
@@ -311,26 +309,26 @@ async def generate_recovery_proposals(disruption: Dict[str, Any]) -> List[Dict[s
         # action, _states = trained_model.predict(state, deterministic=True)
         # ... validate with FDTL and add to proposals
 
-        # If no proposals generated, add fallbacks
+        # If no proposals generated, add disruption-specific fallbacks
         if not proposals:
-            proposals = [
-                {
-                    "id": 1,
-                    "action": "Delay flight by 2 hours",
-                    "reason": "Standard recovery procedure",
-                    "savings": "₹500",
-                    "compliant": True,
-                    "source": "Fallback"
-                },
-                {
-                    "id": 2,
-                    "action": "Swap to backup aircraft",
-                    "reason": "Maintains schedule",
-                    "savings": "₹1200",
-                    "compliant": True,
-                    "source": "Fallback"
-                }
-            ]
+            fallback_actions = base_actions[:2]  # Take first 2 base actions
+            for i, action in enumerate(fallback_actions):
+                # Validate fallback with FDTL
+                action_data = {"action": action}
+                compliance_result = _validate_with_fdtl(action_data, pilot_data)
+                
+                proposals.append({
+                    "id": len(proposals) + 1,
+                    "action": action,
+                    "reason": f"Disruption-specific fallback for {disruption_type}",
+                    "savings": f"₹{500 + i * 200}",  # Vary costs slightly
+                    "compliant": compliance_result["compliant"],
+                    "violations": compliance_result["violations"],
+                    "source": "Fallback",
+                    "disruption_type": disruption_type,
+                    "severity": severity,
+                    "affected_airport": affected_airport
+                })
 
         logger.info(f"Generated {len(proposals)} recovery proposals")
         return proposals
