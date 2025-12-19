@@ -188,154 +188,269 @@ def _validate_with_fdtl(action_data: Dict[str, Any], pilot_data: Dict[str, Any])
         "reason": reason
     }
 
+import requests
+import asyncio
+import json
+
+# ... (keep existing imports up to 'random')
+
+def _get_operational_context(timeout: int = 5) -> Dict[str, Any]:
+    """
+    Fetches the live operational "world model" from all MCP servers.
+    """
+    logger.info("Fetching operational context from MCP servers...")
+    
+    urls = {
+        "flights": "http://localhost:8002/flights",
+        "aircraft": "http://localhost:8002/aircraft",
+        "pilots": "http://localhost:8001/pilots" # Assuming crew_mcp runs on 8001
+    }
+    
+    try:
+        with requests.Session() as session:
+            responses = {
+                key: session.get(url, timeout=timeout)
+                for key, url in urls.items()
+            }
+        
+        context = {}
+        for key, response in responses.items():
+            if response.status_code == 200:
+                context[key] = response.json()
+                logger.info(f"Successfully fetched {len(context[key])} {key}.")
+            else:
+                logger.warning(f"Failed to fetch {key}. Status: {response.status_code}")
+                context[key] = [] # Return empty list on failure
+        
+        return context
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to connect to MCP servers: {e}")
+        return {"flights": [], "aircraft": [], "pilots": []}
+
+
+def _build_llm_prompt(disruption: Dict[str, Any], context: Dict[str, Any]) -> str:
+    """
+    Builds a goal-oriented, structured prompt for the LLM to generate a precise, optimal recovery plan.
+    """
+    
+    # Provide full context, but warn about potential size issues.
+    # TODO: Implement intelligent context pruning for very large datasets.
+    flights = context.get('flights', [])
+    aircraft = context.get('aircraft', [])
+    pilots = context.get('pilots', [])
+
+    prompt = f"""
+You are an expert AI Operations Controller for a major airline. Your goal is to create the most optimal, precise, and compliant recovery plan for a given disruption.
+
+**Current Disruption:**
+- **Type:** {disruption.get('type')}
+- **Severity:** {disruption.get('severity')}
+- **Affected Airport:** {disruption.get('affected_airport')}
+- **Description:** {disruption.get('description')}
+
+**Optimization Goals (in order of importance):**
+1.  **Maximize Regulatory Compliance:** The plan must be 100% compliant with DGCA FDTL rules.
+2.  **Minimize Passenger Disruption:** Prioritize solutions that avoid cancellations. Delaying flights is better than cancelling.
+3.  **Minimize Operational Cost:** Consider the financial impact of each action. Swapping crew is often cheaper than swapping aircraft.
+4.  **Utilize Resources Intelligently:** Consider aircraft health scores (lower is worse) and pilot fatigue scores (higher is worse). Avoid using high-fatigue pilots or unhealthy aircraft unless necessary.
+
+**Live Operational Context:**
+```json
+{{
+  "flights": {json.dumps(flights, indent=2)},
+  "aircraft": {json.dumps(aircraft, indent=2)},
+  "pilots": {json.dumps(pilots, indent=2)}
+}}
+```
+
+**Your Task:**
+Generate a single JSON object that represents the most optimal and detailed recovery plan.
+
+**Action Schema:**
+Your response **MUST** be a single JSON object with the following structure. Do not add any text before or after the JSON object.
+{{
+  "plan_summary": "<A brief, human-readable summary of your plan>",
+  "confidence_score": <A float from 0.0 to 1.0 indicating your confidence in this plan's optimality>,
+  "estimated_cost_impact_usd": <A numerical estimate of the plan's cost impact in USD>,
+  "actions": [
+    {{
+      "action_type": "CANCEL_FLIGHT",
+      "flight_id": "<The flight_id of the flight to cancel, e.g., 'AI-203'>",
+      "reason": "<Brief reason for cancellation based on optimization goals>"
+    }},
+    {{
+      "action_type": "DELAY_FLIGHT",
+      "flight_id": "<The flight_id of the flight to delay>",
+      "delay_minutes": <The delay duration in minutes>,
+      "reason": "<Brief reason for delay>"
+    }},
+    {{
+      "action_type": "SWAP_AIRCRAFT",
+      "flight_id": "<The flight_id that needs a new aircraft>",
+      "new_aircraft_id": "<The tail_number of the new aircraft to assign>",
+      "reason": "<Brief reason for the swap>"
+    }},
+    {{
+      "action_type": "REASSIGN_CREW",
+      "pilot_id": "<The pilot_id of the crew member to reassign>",
+      "from_flight_id": "<The original flight_id, can be null if pilot was on standby>",
+      "to_flight_id": "<The new flight_id>",
+      "reason": "<Brief reason for the reassignment>"
+    }},
+    {{
+      "action_type": "GROUND_AIRCRAFT",
+      "aircraft_id": "<The tail_number of the aircraft to ground>",
+      "reason": "<Brief reason for grounding>"
+    }}
+  ]
+}}
+
+**Instructions:**
+1.  Strictly adhere to the optimization goals. Your plan's quality will be judged by them.
+2.  Your entire response must be a single valid JSON object.
+3.  Use exact `flight_id`, `pilot_id`, and `aircraft_id` values from the context. Do not invent new ones.
+4.  For `REASSIGN_CREW`, if you are assigning a reserve pilot, the `from_flight_id` can be null.
+
+Begin JSON response:
+"""
+    return prompt.strip()
+
+
+def _calculate_plan_cost(plan_actions: List[Dict[str, Any]]) -> float:
+    """
+    Calculates a quantitative cost for a given recovery plan based on business rules.
+    """
+    logger.info("Calculating quantitative cost for the proposed plan...")
+
+    # Define a simple cost model (these values should be in a config file)
+    COST_MODEL = {
+        "CANCEL_FLIGHT": 15000,  # Cost per cancellation in USD
+        "DELAY_FLIGHT_PER_MINUTE": 100,  # Cost per minute of delay
+        "SWAP_AIRCRAFT": 5000,   # Fixed cost for an aircraft swap
+        "REASSIGN_CREW": 1000,     # Fixed cost for reassigning crew
+        "GROUND_AIRCRAFT": 2000    # Fixed cost for grounding (e.g., maintenance checks)
+    }
+
+    total_cost = 0.0
+    for action in plan_actions:
+        action_type = action.get("action_type")
+        if action_type == "CANCEL_FLIGHT":
+            total_cost += COST_MODEL["CANCEL_FLIGHT"]
+        elif action_type == "DELAY_FLIGHT":
+            delay_minutes = action.get("delay_minutes", 0)
+            total_cost += delay_minutes * COST_MODEL["DELAY_FLIGHT_PER_MINUTE"]
+        elif action_type == "SWAP_AIRCRAFT":
+            total_cost += COST_MODEL["SWAP_AIRCRAFT"]
+        elif action_type == "REASSIGN_CREW":
+            total_cost += COST_MODEL["REASSIGN_CREW"]
+        elif action_type == "GROUND_AIRCRAFT":
+            total_cost += COST_MODEL["GROUND_AIRCRAFT"]
+            
+    logger.info(f"Calculated plan cost: ${total_cost:,.2f} USD")
+    return total_cost
+
+
 @app.post("/generate-recovery-proposals")
 async def generate_recovery_proposals(disruption: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    Generate recovery proposals using LLM + RL integration with varied disruptions and DGCA compliance
+    Generates a high-precision recovery plan using a world model and a structured LLM prompt.
     """
     try:
-        logger.info(f"Generating recovery proposals for disruption: {disruption}")
-
-        # Initialize agents
-        rl_env = AirlineRecoveryEnv()
-
-        proposals = []
-        violations = []
-
-        # Enhanced disruption types with specific impacts
-        disruption_type = disruption.get("type", "weather")
-        severity = disruption.get("severity", "medium")
-        affected_airport = disruption.get("affected_airport", "DEL")
-
-        # Get sample pilot and aircraft data from environment
-        if rl_env.pilots:
-            sample_pilot = rl_env.pilots[0]  # Get first pilot
-            pilot_data = {
-                "consecutive_night_duties": sample_pilot.consecutive_night_duties,
-                "hours_since_last_rest": 12,  # Mock
-                "daily_flight_hours": 6,  # Mock
-                "weekly_flight_hours": 20  # Mock
-            }
-        else:
-            pilot_data = {
-                "consecutive_night_duties": 2,
-                "hours_since_last_rest": 24,
-                "daily_flight_hours": 2
-            }
-
-        # Generate context-aware proposals based on disruption type
-        if disruption_type == "weather":
-            base_actions = [
-                "Delay all departures by 2-4 hours",
-                "Cancel non-critical flights",
-                "Divert flights to alternate airports",
-                "Implement ground stop procedures"
-            ]
-        elif disruption_type == "technical":
-            base_actions = [
-                "Ground affected aircraft for inspection",
-                "Swap to backup aircraft",
-                "Delay maintenance-critical flights",
-                "Implement reduced capacity operations"
-            ]
-        elif disruption_type == "crew":
-            base_actions = [
-                "Reassign crew from cancelled flights",
-                "Call in reserve crew members",
-                "Implement fatigue management protocols",
-                "Delay flights requiring specific crew qualifications"
-            ]
-        elif disruption_type == "security":
-            base_actions = [
-                "Ground all flights at affected airport",
-                "Divert international flights",
-                "Implement enhanced security screening",
-                "Cancel flights to high-risk destinations"
-            ]
-        else:
-            base_actions = [
-                "Assess situation and determine impact",
-                "Implement contingency procedures",
-                "Communicate with stakeholders",
-                "Monitor situation for changes"
-            ]
-
-        # SYSTEM 1 (LLM PROPOSER): Generate creative, context-aware recovery proposals
-        logger.info("Invoking System 1 (LLM Proposer)...")
-        try:
-            llm_agent = System2Agent()  # Initialize only when needed
-            enhanced_description = f"{disruption_type.title()} disruption at {affected_airport}: {disruption.get('description', 'Service disruption')}. Severity: {severity}."
-
-            llm_results = llm_agent.reason_and_act(
-                enhanced_description,
-                pilot_data,
-                None
-            )
-
-            if isinstance(llm_results, list) and len(llm_results) > 0:
-                # SYSTEM 2 (SYMBOLIC VERIFIER): Already validated in System2Agent
-                for i, llm_result in enumerate(llm_results[:2]):  # Take up to 2 LLM proposals
-                    proposals.append({
-                        "id": len(proposals) + 1,
-                        "action": llm_result.get("action", "LLM Generated Action"),
-                        "reason": llm_result.get("reasoning", "LLM reasoning"),
-                        "savings": f"₹{llm_result.get('cost', 0):.0f}",
-                        "compliant": llm_result.get("compliant", True),
-                        "violations": [] if llm_result.get("compliant", True) else [{"rule": "fdtl_violation", "description": llm_result.get("validation_reason", "Unknown")}],
-                        "source": "LLM+Verifier",
-                        "disruption_type": disruption_type,
-                        "severity": severity,
-                        "affected_airport": affected_airport
-                    })
-                logger.info(f"LLM proposals added: {len(llm_results)} generated, {len([p for p in proposals if p['source'] == 'LLM+Verifier'])} validated")
-            else:
-                raise ValueError("LLM did not return valid proposals")
-                
-        except Exception as e:
-            logger.error(f"LLM+Verifier pipeline failed: {e}")
-            # Use disruption-specific fallbacks
-            logger.warning("Using disruption-specific fallback proposals")
-
-        # RL AGENT: Disabled until properly trained
-        # TODO: Train RL agent using Stable-Baselines3 or RLlib
-        # TODO: Load trained model and use model.predict() instead of random actions
-        # For now, the RL component is disabled to focus on the core neuro-symbolic loop
-        logger.info("RL agent training required - skipping RL proposals for now")
+        logger.info(f"Generating high-precision recovery plan for disruption: {disruption}")
         
-        # Uncomment below to add RL proposals once trained:
-        # rl_env.reset()
-        # trained_model = load_trained_model()  # Load your trained RL model
-        # state = rl_env.get_state()
-        # action, _states = trained_model.predict(state, deterministic=True)
-        # ... validate with FDTL and add to proposals
+        # 1. Fetch the live operational "world model"
+        operational_context = _get_operational_context()
+        if not any(operational_context.values()):
+            raise HTTPException(status_code=503, detail="MCP servers are unavailable. Cannot generate a precise plan.")
 
-        # If no proposals generated, add disruption-specific fallbacks
-        if not proposals:
-            fallback_actions = base_actions[:2]  # Take first 2 base actions
-            for i, action in enumerate(fallback_actions):
-                # Validate fallback with FDTL
-                action_data = {"action": action}
-                compliance_result = _validate_with_fdtl(action_data, pilot_data)
-                
-                proposals.append({
-                    "id": len(proposals) + 1,
-                    "action": action,
-                    "reason": f"Disruption-specific fallback for {disruption_type}",
-                    "savings": f"₹{500 + i * 200}",  # Vary costs slightly
-                    "compliant": compliance_result["compliant"],
-                    "violations": compliance_result["violations"],
-                    "source": "Fallback",
-                    "disruption_type": disruption_type,
-                    "severity": severity,
-                    "affected_airport": affected_airport
-                })
+        # Create maps for quick lookups
+        pilots_map = {{p['pilot_id']: p for p in operational_context.get('pilots', [])}}
 
-        logger.info(f"Generated {len(proposals)} recovery proposals")
-        return proposals
+        # 2. Build the detailed, goal-oriented prompt for the LLM
+        prompt = _build_llm_prompt(disruption, operational_context)
+
+        # 3. Invoke System 1 (LLM Proposer) to get a structured plan
+        logger.info("Invoking LLM Proposer for a structured, actionable plan...")
+        llm_agent = System2Agent()
+        raw_llm_output = llm_agent.reason_and_act_structured(prompt)
+        
+        if not raw_llm_output:
+            raise ValueError("LLM agent returned no output.")
+
+        # 4. Parse and Validate the LLM's JSON output
+        try:
+            if raw_llm_output.startswith("```json"):
+                raw_llm_output = raw_llm_output[7:-4].strip()
+            plan = json.loads(raw_llm_output)
+            logger.info(f"LLM proposed plan: {plan.get('plan_summary')}")
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse JSON from LLM. Output: {raw_llm_output}")
+            raise ValueError("LLM did not return a valid JSON object.")
+
+        # 5. Accurate Verification with System 2 (Symbolic Verifier)
+        all_actions_compliant = True
+        violations = []
+        
+        for action in plan.get("actions", []):
+            pilot_data_for_action = None
+            
+            # Find the specific pilot data for validation if the action involves crew
+            if action['action_type'] == 'REASSIGN_CREW':
+                pilot_id = action.get('pilot_id')
+                if pilot_id in pilots_map:
+                    pilot_data_for_action = pilots_map[pilot_id]
+                else:
+                    logger.warning(f"Pilot '{pilot_id}' from plan not found in context.")
+                    all_actions_compliant = False
+                    violations.append({
+                        "rule": "data_consistency_error",
+                        "description": f"Proposed pilot_id '{pilot_id}' does not exist in the provided context.",
+                        "severity": "high"
+                    })
+                    continue # Skip validation for this action
+
+            # If action doesn't involve a pilot, we can't do FDTL validation
+            if not pilot_data_for_action:
+                continue
+
+            # The verifier needs to be adapted to handle structured actions
+            # For now, we adapt the call to fit the old validation function signature
+            compliance_result = _validate_with_fdtl(
+                {"action": f"{action['action_type']} {action.get('flight_id', '')}"}, 
+                pilot_data_for_action # Use the CORRECT pilot data
+            )
+            if not compliance_result["compliant"]:
+                all_actions_compliant = False
+                violations.extend(compliance_result["violations"])
+        
+        # 6. Calculate quantitative cost of the plan
+        plan_cost_usd = _calculate_plan_cost(plan.get("actions", []))
+
+        # 7. Format the response for the frontend
+        proposal = {
+            "id": 1,
+            "action": plan.get("plan_summary", "No summary provided."),
+            "reason": f"AI-generated plan to address {disruption.get('type')} disruption.",
+            "savings": f"₹{plan_cost_usd * 80:,.0f}", # Use calculated cost, convert to INR
+            "compliant": all_actions_compliant,
+            "violations": violations,
+            "source": "LLM+Verifier (Scored)",
+            "confidence": plan.get("confidence_score", 0.0),
+            "disruption_type": disruption.get('type'),
+            "severity": disruption.get('severity'),
+            "affected_airport": disruption.get('affected_airport'),
+            "details": plan.get("actions", [])
+        }
+        
+        logger.info(f"Generated 1 high-precision, scored recovery proposal.")
+        return [proposal]
 
     except Exception as e:
-        logger.error(f"Error generating proposals: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate proposals")
+        logger.error(f"Error generating high-precision proposals: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate proposals: {str(e)}")
+
+
 
 if __name__ == "__main__":
     import uvicorn

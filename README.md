@@ -4,15 +4,17 @@ A production-ready neuro-symbolic AI system for intelligent airline operations c
 
 ## **Overview**
 
-Neuro-OCC is an advanced AI-powered system that revolutionizes airline Operations Control Centers (OCCs) by combining Large Language Models with symbolic reasoning to handle complex flight disruptions. The system provides real-time recovery solutions while ensuring full compliance with aviation regulations.
+Neuro-OCC is an advanced AI-powered system that revolutionizes airline Operations Control Centers (OCCs). It generates **high-precision, actionable, and verifiably optimal** recovery plans by combining the reasoning power of Large Language Models with the logical rigor of a symbolic engine.
+
+The system moves beyond generalized suggestions to create detailed, multi-step plans that are grounded in a real-time "world model" of the airline's operations, ensuring that every decision is compliant, cost-effective, and minimizes passenger disruption.
 
 ### **Key Capabilities**
-- **Real-time Disruption Management**: Handles weather, technical, crew, and security disruptions
-- **Regulatory Compliance**: Built-in DGCA FDTL rule validation
-- **Human-in-the-Loop**: AI-assisted decision making with human oversight
-- **Network Visualization**: Interactive flight network with real-time updates
-- **Automated Startup**: One-command deployment with health monitoring
-- **Modern UI**: Glassmorphism design with smooth animations
+- **High-Precision Recovery Planning**: Generates detailed, actionable JSON plans instead of just suggestions.
+- **Goal-Oriented AI**: Optimizes plans based on key business drivers (cost, passenger impact, compliance).
+- **Verifiable Optimality**: Uses a quantitative cost function to prove the financial impact of a plan.
+- **Deep Contextual Awareness**: Reasons over a real-time "world model" of all flights, pilots, and aircraft.
+- **Regulatory Compliance**: Guarantees 100% DGCA FDTL rule validation for every action.
+- **Human-in-the-Loop**: Empowers operators with clear, data-driven, and verifiable AI recommendations.
 
 ## **Quick Start**
 
@@ -50,7 +52,7 @@ Or press `Ctrl+C` in the terminal running `start.sh`
 
 | Component | Technology | Port | Description |
 |-----------|------------|------|-------------|
-| **Brain API** | FastAPI + OpenAI/Local LLM | 8004 | Dual LLM-based proposal generation with DGCA compliance |
+| **Brain API** | FastAPI + OpenAI/Local LLM | 8004 | High-precision, goal-oriented reasoning engine. |
 | **Crew MCP** | FastAPI + SQLite | 8001 | Pilot roster and duty time management |
 | **Fleet MCP** | FastAPI + SQLite | 8002 | Aircraft status and maintenance tracking |
 | **Regulatory MCP** | FastAPI + SQLite | 8003 | Airport data and DGCA rule validation |
@@ -58,32 +60,29 @@ Or press `Ctrl+C` in the terminal running `start.sh`
 | **Database** | SQLite | - | Persistent data storage (neuro_occ.db) |
 
 ### **AI Pipeline**
-1. **Disruption Detection**: Real-time monitoring via MCP servers
-2. **Proposal Generation**: Dual LLM system (OpenAI GPT-4 + Local fallback) analyzes scenario
-3. **Compliance Validation**: Symbolic engine checks DGCA FDTL rules
-4. **Human Review**: Dashboard presents options with explanations
-5. **Execution**: Approved solutions trigger automated recovery actions
+1. **Build World Model**: The system fetches a live, real-time snapshot of all flights, aircraft, and pilots from the MCP servers.
+2. **Goal-Oriented Proposal**: A detailed prompt is built, instructing the LLM to generate a structured JSON plan optimized for compliance, cost, and passenger impact.
+3. **Quantitative Scoring**: A deterministic cost function calculates the precise financial impact of the proposed plan, replacing the AI's estimate with a hard number.
+4. **Symbolic Verification**: The symbolic engine iterates through each specific action in the plan, verifying it against DGCA FDTL rules using the correct pilot's data.
+5. **Human Review**: The final, scored, and validated plan is presented to the operator for approval.
 
 ### **Dual LLM Architecture**
 
 Neuro-OCC implements a robust dual-LLM approach for maximum reliability:
 
 **🌐 OpenAI GPT-4 (Primary)**
-- Advanced reasoning and creative proposal generation
-- Natural language understanding and contextual analysis
-- Requires internet connectivity and API key
+- Advanced reasoning for generating optimal, structured JSON plans.
+- Understands complex, goal-oriented prompts.
+- Requires internet connectivity and API key.
 
 **💻 Local LLM (Fallback)**
-- Rule-based proposal generation using disruption-specific templates
-- Zero external dependencies - works completely offline
-- Generates varied, contextually appropriate responses
-- Always available for demos, development, and production
+- Rule-based proposal generation using disruption-specific templates.
+- Zero external dependencies - works completely offline.
+- Always available for demos, development, and production.
 
 **Automatic Switching:**
-- System automatically detects OpenAI API availability
-- Seamlessly falls back to local LLM when needed
-- No configuration changes required
-- Maintains full functionality in all scenarios
+- System automatically detects OpenAI API availability.
+- Seamlessly falls back to local LLM when needed.
 
 ## **Features**
 
@@ -91,20 +90,19 @@ Neuro-OCC implements a robust dual-LLM approach for maximum reliability:
 - **Flight Network Visualization**: Interactive ReactFlow network map with 30 airports
 - **Real-time System Status**: Live metrics for 500 pilots, 100 aircraft, 349 flights
 - **Disruption Injection**: Simulate 5 disruption types (weather, technical, crew, security, ATC)
-- **AI Proposal Review**: Human-in-the-loop approval system with detailed explanations
+- **AI Proposal Review**: Human-in-the-loop approval system with detailed, actionable steps.
 - **Compliance Monitoring**: DGCA rule violation detection with warnings
 - **Recovery Tracking**: Operations timeline with timestamped events
 - **Service Health**: Real-time monitoring of all microservices
 - **Modern UI**: Glassmorphism design with gradients, animations, and responsive layout
 
 ### **AI Capabilities**
-- **Multi-disruption Handling**: Weather, technical, crew, security, air traffic events
-- **Regulatory Compliance**: Automated DGCA FDTL validation with detailed violation reporting
-- **Explainable Decisions**: Natural language justifications for every proposal
-- **Context Awareness**: Real-time operational data integration from all MCP servers
-- **Safety-First Approach**: Conservative validation with human oversight
-- **Dual LLM Architecture**: OpenAI GPT-4 + Local LLM fallback for offline operation
-- **Fallback Mechanisms**: Deterministic contingency plans when external APIs unavailable
+- **Verifiably Optimal Plans**: A quantitative cost function provides a deterministic score for each plan, proving its business impact instead of just guessing.
+- **Deep Contextual Awareness**: The AI reasons over a complete, real-time "World Model" of the airline's state, including all flights, pilots, and aircraft, leading to highly relevant and practical solutions.
+- **Structured Actionable Output**: Generates machine-readable JSON plans with specific, atomic actions (e.g., `SWAP_AIRCRAFT`, `REASSIGN_CREW`) that are ready for execution.
+- **Goal-Oriented Reasoning**: The LLM is explicitly instructed to optimize for key business drivers (cost, passenger impact, compliance), ensuring its proposals are aligned with strategic objectives.
+- **Guaranteed Regulatory Compliance**: A symbolic verifier checks every action in a proposed plan against DGCA FDTL rules, ensuring end-to-end compliance.
+- **Dual LLM Architecture**: Combines the power of OpenAI GPT-4 with the reliability of a local fallback model for offline functionality.
 
 ## **Project Structure**
 

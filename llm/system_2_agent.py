@@ -13,7 +13,7 @@ load_dotenv()
 class System2Agent:
     """
     Test-Time Compute Agent (Chain-of-Thought Optimizer).
-    Evaluates multiple recovery branches and validates with the Symbolic layer.
+    Now supports both high-level reasoning and structured, high-precision plan generation.
     """
     def __init__(self):
         self.verifier = FDTLValidator()
@@ -25,16 +25,46 @@ class System2Agent:
             if api_key:
                 self.client = OpenAI(api_key=api_key)
                 self.openai_available = True
+                print("OpenAI client initialized successfully.")
             else:
                 self.client = None
                 self.openai_available = False
+                print("OpenAI API key not found. Falling back to Local LLM.")
         except Exception as e:
             print(f"OpenAI client initialization failed: {e}")
             self.client = None
             self.openai_available = False
 
+    def reason_and_act_structured(self, prompt: str) -> str:
+        """
+        Passes a detailed, pre-built prompt to the LLM and returns the raw, structured output.
+        This is used for high-precision, scema-guided plan generation.
+        """
+        print("--- Entering System 2 Structured Reasoning Mode ---")
+        if self.openai_available:
+            try:
+                print("Using OpenAI GPT-4 for structured JSON proposal generation...")
+                response = self.client.chat.completions.create(
+                    model="gpt-4-turbo-preview", # Optimized for JSON output
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"},
+                    max_tokens=2048,
+                    temperature=0.2 # Lower temperature for more predictable, structured output
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                print(f"OpenAI structured call failed: {e}. Falling back to local LLM.")
+                # Fallback to a local method if available
+                return self.local_llm.generate_structured_plan(prompt)
+        else:
+            print("OpenAI not available, using Local LLM for structured generation...")
+            return self.local_llm.generate_structured_plan(prompt)
+
     def reason_and_act(self, disruption_event, pilot_data, aircraft_data):
-        print(f"--- Entering System 2 Reasoning Mode ---")
+        """
+        Original method for generating more generalized proposals.
+        """
+        print(f"--- Entering System 2 Legacy Reasoning Mode ---")
         print(f"Disruption: {disruption_event}")
         
         if self.openai_available:

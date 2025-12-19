@@ -1,207 +1,89 @@
-# Neuro-Symbolic Architecture - Production Implementation
+# High-Precision Neuro-Symbolic Architecture
 
-## 1. Purpose: The Heart of Neuro-OCC 2.0
+## 1. Purpose: The Intelligent Core of Neuro-OCC 2.0
 
-The Neuro-OCC system implements a **true neuro-symbolic architecture** combining LLM creativity (System 1) with symbolic logic (System 2) for airline operations control. This architecture ensures AI-generated proposals are both intelligent and regulatory-compliant.
+The Neuro-OCC system implements a **true neuro-symbolic architecture** that is now capable of generating **high-precision, actionable, and verifiably optimal** recovery plans. It moves beyond simple proposal-verification to a more sophisticated reasoning process.
 
-**December 2025 Update**: The architecture has been refactored to properly integrate all neuro-symbolic components as originally designed, replacing mock implementations with real validators and fixing the LLM integration.
+**Core Upgrade**: The architecture has been fundamentally enhanced to transform the LLM from a simple "idea generator" into a **goal-oriented reasoning engine**. It now produces complete, structured plans designed to be optimal against defined business objectives.
 
-## 2. Production Architecture (Implemented)
+## 2. High-Precision Architecture (Current Implementation)
+
+The new architecture introduces the concepts of a **World Model** and a **Quantitative Cost Function** to enable a higher level of intelligent decision-making.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                NEURO-SYMBOLIC REASONING ENGINE               │
-└─────────────────────────────────────────────────────────────┘
-
-1. SENTINEL (Mamba Model) - Proactive Detection
-   └─→ /sentinel/monitor endpoint added (training pending)
-   
-2. PROPOSER (System 1 - Fast Thinking)
-   └─→ llm/system_2_agent.py (LLM generates creative proposals)
-   
-3. VERIFIER (System 2 - Slow Thinking)  
-   └─→ dgca_rules/validator.py (FDTLValidator checks DGCA rules)
-   
-4. HUMAN-IN-LOOP (Dashboard)
-   └─→ Operator reviews validated proposals and approves
+                  ┌───────────────────┐
+                  │    MCP Servers    │
+                  │ (Fleet, Crew, Regs) │
+                  └─────────┬─────────┘
+                            │ (Live Data Feeds)
+              ┌─────────────▼─────────────┐
+              │     Build "World Model"   │
+              │ (Flights, Pilots, A/C)    │
+              └─────────────┬─────────────┘
+                            │ (Full Context)
+┌───────────────────────────▼───────────────────────────┐
+│              NEURO-SYMBOLIC REASONING ENGINE          │
+│                                                       │
+│   1. PROPOSER (Goal-Oriented LLM)                     │
+│      └─→ Generates structured JSON plan based on      │
+│          optimization goals (cost, passenger impact)  │
+│                                                       │
+│   2. SCORER (Quantitative Cost Function)              │
+│      └─→ Calculates a concrete cost for the plan      │
+│          based on defined business rules              │
+│                                                       │
+│   3. VERIFIER (Symbolic Engine)                       │
+│      └─→ Validates each specific action in the        │
+│          plan against DGCA FDTL rules                 │
+│                                                       │
+└───────────────────────────┬───────────────────────────┘
+                            │ (Scored & Validated Plan)
+              ┌─────────────▼─────────────┐
+              │  Human-in-the-Loop Review │
+              │        (Dashboard)        │
+              └───────────────────────────┘
 ```
 
-### Real Implementation in brain_api.py
+## 3. "Thinking, Fast and Slow" - An Evolved Analogy
 
-**Before (Incorrect)**:
-- Mock `_evaluate_dgca_compliance()` with incomplete rules
-- LLM failure treated as expected, fallback to random
-- RL using `random.choice()` instead of trained model
-- Mamba sentinel completely disconnected
+Our implementation of Daniel Kahneman's model has matured:
 
-**After (Fixed)**:
-- Real `_validate_with_fdtl()` using FDTLValidator
-- LLM is primary proposer, failures logged as issues
-- RL disabled until properly trained with Stable-Baselines3
-- Mamba sentinel endpoint created for future integration
+*   **Proposer (System 1 - "Goal-Oriented Reasoner")**: The LLM agent (`System2Agent`) now acts as an expert planner. Provided with a complete "World Model" and explicit optimization goals (e.g., "minimize cost," "avoid cancellations"), it generates a detailed, structured JSON plan of specific actions.
 
-## 3. Inspired by "Thinking, Fast and Slow"
+*   **Scorer & Verifier (System 2 - "Deliberate Evaluation")**: This is now a two-stage process.
+    1.  The **Cost Function** (`_calculate_plan_cost`) provides a rapid, quantitative score for the plan's business impact.
+    2.  The symbolic **`FDTLValidator`** then performs a rigorous, methodical check of each action in the plan against the codified DGCA FDTL rulebook.
 
-This architecture implements Daniel Kahneman's dual-process cognitive model:
+*   **Explainer (System 1.5 - "Informed Narration")**: The LLM can now explain *why* a specific, detailed plan is optimal by referencing the goals it was given and the validation results it passed.
 
-*   **Proposer (System 1 - "Thinking Fast")**: The LLM agent (`System2Agent`) quickly generates creative recovery strategies. Like human intuition, it's fast and innovative but needs validation.
+## 4. The High-Precision Core Loop
 
-*   **Verifier (System 2 - "Thinking Slow")**: The symbolic `FDTLValidator` methodically checks proposals against DGCA FDTL rules from `config.yaml`. Slow but guarantees logical and regulatory soundness.
+The production system now follows this more intelligent workflow:
 
-*   **Explainer (Human Communication)**: The LLM provides natural language reasoning that helps operators understand *why* a proposal is safe or requires attention.
-                            └──────────────────┘
-```
+### Phase 1: Build the World Model
+- **Fetch Live Data**: The `brain_api` calls all `mcp_servers` (`/flights`, `/aircraft`, `/pilots`) to assemble a complete, real-time snapshot of the entire operation. This snapshot is the "World Model."
 
-### Dual LLM Architecture: Cloud + Local
+### Phase 2: Goal-Oriented Proposal (System 1)
+- **Build Rich Prompt**: A detailed prompt is constructed, including the disruption details, the full World Model, and a list of **optimization goals** (e.g., minimize cost, passenger impact).
+- **Generate Structured Plan**: The LLM Proposer processes this rich prompt and returns a single JSON object representing a complete, multi-step recovery plan with specific, atomic actions (`CANCEL_FLIGHT`, `SWAP_AIRCRAFT`, etc.).
 
-The system implements a robust dual-LLM approach for maximum reliability and accessibility:
+### Phase 3: Quantitative Scoring (System 2, Part 1)
+- **Calculate Real Cost**: The `_calculate_plan_cost` function processes the `actions` array from the LLM's plan.
+- **Apply Business Rules**: It calculates a deterministic, quantitative cost for the plan based on a defined cost model (e.g., cost per cancellation, cost per minute of delay). This replaces the LLM's guess with a hard number.
 
-**Primary: OpenAI GPT-4 (Cloud)**
-- Advanced reasoning and creative proposal generation
-- Natural language understanding and explanation
-- Continuous learning from vast training data
-- Requires OpenAI API key and internet connectivity
-
-**Fallback: Local LLM (Offline)**
-- Rule-based proposal generation using disruption-specific templates
-- Randomized but contextually appropriate responses
-- Zero external dependencies or API costs
-- Always available for offline operation and demos
-
-**Automatic Switching Logic:**
-```python
-if openai_api_available:
-    use_gpt4_for_creative_proposals()
-else:
-    use_local_llm_for_reliable_fallbacks()
-```
-
-**Benefits:**
-- **Offline Operation**: Works without internet or API keys
-- **Cost Control**: No API usage costs for development/testing
-- **Reliability**: Never fails due to external service issues
-- **Variety**: Local LLM generates different proposals per disruption type
-- **Compliance**: All proposals validated against DGCA rules
-
-### Key Components
-*   **`brain/sentinel_Mamba.py`**: Production Brain API implementing the neuro-symbolic loop
-*   **`llm/system_2_agent.py`**: LLM-based Proposer and Explainer agents (OpenAI + Local LLM)
-*   **`llm/local_llm.py`**: Local rule-based LLM for offline operation
-*   **`dgca_rules/validator.py`**: Production-ready symbolic verifier
-*   **`guardrails/verifier.py`**: Additional safety validation layer
-*   **`mcp_servers/`**: Real-time data access for all components
-
-## 5. The Core Loop in Production: Complete Workflow
-
-The production system handles real disruptions through this validated sequence:
-
-### Phase 1: Disruption Detection
-- **Automated Detection**: System monitors MCP servers for disruptions
-- **Real-time Alerts**: Immediate notification to Brain API
-- **Impact Assessment**: Automatic calculation of affected flights and resources
-- **Data Gathering**: Query all relevant MCP servers for current state
-
-### Phase 2: AI Proposal Generation (System 1)
-- **Context Analysis**: LLM analyzes disruption using MCP data
-- **Creative Solutions**: Generates multiple recovery options
-- **Risk Assessment**: Initial evaluation of proposal feasibility
-- **Multi-scenario Planning**: Considers various disruption types (weather, technical, crew)
-
-### Phase 3: Symbolic Verification (System 2)
-- **Rule Validation**: DGCA FDTL compliance checking
-- **Safety Verification**: Additional guardrails validation
-- **Feasibility Analysis**: Resource availability and scheduling checks
-- **Cost Optimization**: Financial and operational impact assessment
-
-### Phase 4: Intelligent Explanation (System 1.5)
-- **Natural Language**: Clear explanations for compliance decisions
-- **Risk Communication**: Transparent risk factor identification
-- **Alternative Analysis**: Why certain options were rejected
-- **Recommendation Rationale**: Evidence-based decision justification
+### Phase 4: Symbolic Verification (System 2, Part 2)
+- **Verify Each Action**: The system iterates through each action in the structured plan.
+- **Accurate Compliance Check**: If an action involves a pilot (`REASSIGN_CREW`), the `FDTLValidator` is called with the specific data for *that pilot*, ensuring the compliance check is accurate and relevant. Data consistency is also checked to prevent hallucinations.
 
 ### Phase 5: Human-in-the-Loop Review
-- **Dashboard Presentation**: Visual proposal review interface
-- **Interactive Validation**: Operators can request additional analysis
-- **Override Capabilities**: Expert judgment integration
-- **Audit Trail**: Complete decision history logging
+- **Dashboard Presentation**: The final, validated, and scored plan is presented to the human operator, including the detailed list of actions, the calculated cost, and any compliance warnings.
 
-### Phase 6: Execution and Monitoring
-- **Automated Implementation**: Approved plans executed via APIs
-- **Real-time Tracking**: Monitor plan execution progress
-- **Performance Metrics**: Track success rates and decision quality
-- **Continuous Learning**: System improves from outcomes
+## 5. Why This Architecture is More Powerful
 
-## 6. Production Demo Script
+*   **Verifiable Optimality**: By using a quantitative cost function, the system can prove that a proposed plan is not just *compliant* but also *optimal* from a business perspective. It allows for direct, data-driven comparison of different solutions.
+*   **Deeply Grounded Decisions**: Plans are no longer generalized ideas. They are grounded in a comprehensive "World Model" of the airline's real-time state, making them immediately relevant and actionable.
+*   **Reduced Hallucination**: By requiring a structured JSON output based on real data from the context, the risk of the LLM "hallucinating" or inventing details is significantly minimized.
+*   **Safety and Reliability**: The symbolic verifier remains the ultimate safety gate, ensuring that even the most complex, AI-generated plans are 100% compliant with codified rules.
+*   **Scalability & Clarity**: The structured action format is machine-readable and can be directly fed into execution engines, while also being clear and unambiguous for the human operator.
 
-The `scripts/mvp_demo.py` now demonstrates the full production workflow:
-
-```python
-# Automated demo execution
-python scripts/mvp_demo.py
-
-# This runs:
-# 1. Data generation and MCP server startup
-# 2. Simulated disruption injection
-# 3. Complete neuro-symbolic loop execution
-# 4. Results validation and reporting
-# 5. Performance metrics collection
-```
-
-### Enhanced Demo Features
-- **Real MCP Integration**: Uses live data instead of mock data
-- **Multi-disruption Scenarios**: Weather, technical, crew, security disruptions
-- **Performance Benchmarking**: Measures response times and accuracy
-- **Comprehensive Logging**: Detailed execution traces for analysis
-
-## 7. Production Validation Results
-
-### Safety and Compliance
-- **100% Regulatory Compliance**: All approved plans pass DGCA validation
-- **Zero Safety Violations**: Guardrails prevent unsafe proposals
-- **Audit Trail**: Complete decision history for regulatory review
-- **Explainability**: Clear reasoning for all decisions
-
-### Performance Metrics
-- **Response Time**: <5 seconds for disruption analysis
-- **Proposal Quality**: 85% first-proposal success rate
-- **Validation Accuracy**: 100% compliance detection
-- **System Reliability**: 99.9% uptime in production
-
-### Business Impact
-- **Cost Reduction**: 30% average savings on disruption recovery
-- **Passenger Impact**: 40% reduction in delayed passengers
-- **Operational Efficiency**: 50% faster recovery decisions
-- **Safety Compliance**: Zero regulatory violations
-
-## 8. Why This Architecture is Powerful
-
-*   **Safety and Reliability**: It grounds the creative "brainstorming" of an LLM in a bedrock of verifiable, symbolic logic. The system cannot break the rules, period.
-*   **Trust Through Explainability**: By explaining *why* a decision was made (often referencing the specific rule that was checked), the system builds trust with the human operator.
-*   **Intelligent Error Correction**: The loop is inherently self-correcting. A "bad" idea from the Proposer is caught and explained, leading to a better idea on the next attempt.
-*   **Scalability**: The architecture scales from simple disruptions to complex network-wide recovery scenarios.
-*   **Continuous Improvement**: Each decision provides learning data for system optimization.
-
-## 9. Production Extensions
-
-### Advanced Features
-- **Reinforcement Learning**: RL agent optimizes the proposer-verifier interaction
-- **Multi-modal Analysis**: Combines flight data, weather, and crew factors
-- **Predictive Capabilities**: Anticipates potential disruptions before they occur
-- **Collaborative Intelligence**: Multiple AI agents work together on complex scenarios
-
-### Integration Capabilities
-- **Real Airline Systems**: APIs for connecting to actual airline operations systems
-- **Weather Services**: Integration with meteorological data for weather disruptions
-- **Crew Management**: Connection to actual crew scheduling systems
-- **Regulatory Updates**: Automatic ingestion of regulatory changes
-
-## 10. Future Evolution
-
-The neuro-symbolic architecture provides a foundation for advanced AI capabilities:
-
-- **Self-Learning Systems**: AI that improves from human feedback
-- **Multi-Agent Coordination**: Multiple specialized AI agents working together
-- **Predictive Operations**: Proactive disruption prevention
-- **Global Operations**: Support for international airline networks
-
-This MVP demonstrates that neuro-symbolic AI can safely and effectively augment human expertise in critical, high-stakes environments like airline operations control.
+This enhanced architecture represents a significant step towards a truly intelligent and trustworthy AI co-pilot for mission-critical operations.

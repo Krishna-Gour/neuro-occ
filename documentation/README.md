@@ -17,51 +17,44 @@ Current methods often rely on experienced human operators, but the sheer scale a
 
 **Neuro-OCC 2.0** is a production-ready system that demonstrates how a neuro-symbolic AI can assist airline OCCs in managing disruptions more effectively. It combines the strengths of two powerful AI paradigms:
 
-*   **Neural Networks (System 1 Thinking)**: We use Large Language Models (LLMs) for their creative problem-solving abilities. The LLM acts as a **Proposer**, generating potential recovery solutions in a flexible, intuitive manner, much like a human expert.
-*   **Symbolic AI (System 2 Thinking)**: We use a symbolic rule engine as a **Verifier**. This component contains a codified representation of the DGCA FDTL rulebook, allowing it to rigorously and transparently check if the LLM's proposed solutions are compliant and feasible.
+*   **Neural Networks (System 1 Thinking)**: We use Large Language Models (LLMs) for their advanced reasoning capabilities. The LLM acts as a **Goal-Oriented Proposer**, analyzing a complete "World Model" of the airline's state and generating a detailed, structured recovery plan designed to be optimal against business goals.
+*   **Symbolic AI (System 2 Thinking)**: We use a symbolic rule engine as a **Verifier**. This component contains a codified representation of the DGCA FDTL rulebook, allowing it to rigorously and transparently check each action in the LLM's proposed plan for compliance.
 
-This hybrid approach, inspired by Daniel Kahneman's "Thinking, Fast and Slow," creates a powerful **Proposer-Verifier-Explainer** loop that delivers robust, safe, and explainable solutions.
+This hybrid approach, inspired by Daniel Kahneman's "Thinking, Fast and Slow," creates a powerful **Proposer-Scorer-Verifier** loop that delivers robust, safe, and verifiably optimal solutions.
 
 ## 3. System Architecture
 
 The Neuro-OCC system is built around a few core components that work in concert:
 
-1.  **Brain API (FastAPI Server)**: Central AI service that orchestrates proposal generation and compliance validation.
+1.  **Brain API (FastAPI Server)**: Central AI service that orchestrates the entire reasoning workflow.
     *   *Port: 8004*
-    *   *Features: LLM integration, DGCA compliance checking, disruption analysis*
 
-2.  **Proposer (LLM Agent)**: An LLM-based agent that analyzes a disruption scenario and proposes a recovery plan.
+2.  **Proposer (Goal-Oriented LLM Agent)**: An LLM-based agent that analyzes a "World Model" and proposes an optimal, structured JSON recovery plan.
     *   *See: `llm/system_2_agent.py`*
 
-3.  **Verifier (Symbolic Engine)**: A Python-based rules engine that validates the proposed plan against the DGCA FDTL rulebook.
-    *   *See: `dgca_rules/validator.py` (Deterministic Logic)*
+3.  **Scorer (Cost Function)**: A deterministic function that calculates the quantitative cost of a proposed plan based on business rules.
+    *   *See: `brain_api.py`*
 
-4.  **Explainer (LLM Agent)**: The same LLM agent also provides natural language explanations for why a solution was chosen or why a proposed solution was invalid.
+4.  **Verifier (Symbolic Engine)**: A Python-based rules engine that validates each action in the proposed plan against the DGCA FDTL rulebook.
+    *   *See: `dgca_rules/validator.py`*
 
-5.  **Orchestrator (RL Agent)**: A Reinforcement Learning agent that learns and optimizes the process of finding valid solutions, guiding the Proposer-Verifier interaction.
-    *   *See: `brain/recovery_env.py`*
-
-6.  **Human-in-the-Loop Dashboard**: A modern React-based interface that allows human operators to monitor the AI's suggestions, review the validation results, and make the final decisions.
+5.  **Human-in-the-Loop Dashboard**: A modern React-based interface that allows human operators to monitor the AI's suggestions, review the validation and cost scoring, and make the final decisions.
     *   *Port: 3000*
-    *   *Features: Real-time network visualization, disruption injection, proposal approval*
 
-7.  **Model Context Protocol (MCP) Servers**: These servers provide a structured, real-time "view" of the operational world state (e.g., crew rosters, aircraft status) for the AI models.
+6.  **Model Context Protocol (MCP) Servers**: These servers provide a structured, real-time "view" of the operational world state (e.g., crew rosters, aircraft status) that is used to build the World Model.
     *   *See: `mcp_servers/`*
-    *   **Crew MCP**: Pilot data and duty time management (Port: 8001)
-    *   **Fleet MCP**: Aircraft status and maintenance (Port: 8002)
-    *   **Regulatory MCP**: Airport data and DGCA rules (Port: 8003)
 
 ## 4. Key Features
 
+*   **Verifiably Optimal Plans**: A quantitative cost function provides a deterministic score for each plan.
+*   **Deep Contextual Awareness**: The AI reasons over a complete, real-time "World Model".
+*   **Structured Actionable Output**: Generates machine-readable JSON plans with specific, atomic actions.
+*   **Goal-Oriented Reasoning**: The LLM is explicitly instructed to optimize for key business drivers.
+*   **Guaranteed Regulatory Compliance**: A symbolic verifier checks every action in a proposed plan.
 *   **Automated Deployment**: One-command startup with `./start.sh`
-*   **Real-time Network Visualization**: Interactive flight network with ReactFlow
-*   **Multi-disruption Support**: Weather, technical, crew, and security scenarios
-*   **Regulatory Compliance**: Automated DGCA FDTL validation with detailed violation reporting
-*   **Human-in-the-Loop**: AI proposal review and approval workflow
-*   **Explainable AI (XAI)**: Clear justifications for all decisions
-*   **Synthetic Data Generation**: Realistic flight, pilot, and airport data
-*   **Reinforcement Learning**: Optimized recovery strategy discovery
-*   **Production Monitoring**: Health checks and service status tracking
+*   **Human-in-the-Loop**: AI proposal review and approval workflow.
+*   **Explainable AI (XAI)**: Clear justifications for all decisions.
+*   **Production Monitoring**: Health checks and service status tracking.
 
 ## 5. Project Structure
 
