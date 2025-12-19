@@ -1,6 +1,6 @@
 import os
 import json
-from guardrails.verifier import DGCAVerifier
+from dgca_rules.validator import FDTLValidator
 
 class System2Agent:
     """
@@ -8,7 +8,7 @@ class System2Agent:
     Evaluates multiple recovery branches and validates with the Symbolic layer.
     """
     def __init__(self):
-        self.verifier = DGCAVerifier()
+        self.verifier = FDTLValidator()
 
     def reason_and_act(self, disruption_event, pilot_data, aircraft_data):
         print(f"--- Entering System 2 Reasoning Mode ---")
@@ -16,11 +16,11 @@ class System2Agent:
         
         # Branch A: Delay
         branch_a_cost = 500
-        branch_a_compliant, _ = self.verifier.verify_plan(pilot_data, {"duration_hours": 2})
+        branch_a_compliant, _ = self.verifier.validate_assignment(pilot_data, {"duration_hours": 2})
         
         # Branch B: Swap Aircraft
         branch_b_cost = 1200
-        branch_b_compliant, _ = self.verifier.verify_plan(pilot_data, {"duration_hours": 1})
+        branch_b_compliant, _ = self.verifier.validate_assignment(pilot_data, {"duration_hours": 1})
         
         # Branch C: Cancel
         branch_c_cost = 5000

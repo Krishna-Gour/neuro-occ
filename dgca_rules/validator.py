@@ -1,20 +1,28 @@
 import yaml
 import os
+from typing import Dict, Any, Tuple
 
 class FDTLValidator:
     """
     Standalone library for DGCA 2025 Flight Duty Time Limitation (FDTL) compliance.
     """
-    def __init__(self, config_path=None):
+    def __init__(self, config_path: str = None):
         if config_path is None:
             # Try to find config.yaml in the project root
             config_path = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
         
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-            self.rules = config['dgca_fdtl']
+        try:
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+                self.rules = config['dgca_fdtl']
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Config file not found at {config_path}")
+        except KeyError:
+            raise KeyError("Invalid config: missing 'dgca_fdtl' section")
+        except yaml.YAMLError as e:
+            raise ValueError(f"Error parsing config YAML: {e}")
 
-    def validate_assignment(self, pilot_data, proposed_flight):
+    def validate_assignment(self, pilot_data: Dict[str, Any], proposed_flight: Dict[str, Any]) -> Tuple[bool, str]:
         """
         Validates if a proposed flight assignment for a pilot is legal under DGCA rules.
         
