@@ -422,34 +422,70 @@ function App() {
                     placeholder="e.g. DEL"
                   />
                 </label>
-                <label className="form-wide">
-                  Operator Notes
-                  <textarea
-                    rows={3}
-                    value={selectedDisruption.description}
-                    onChange={(e) => setSelectedDisruption((prev) => ({ ...prev, description: e.target.value }))}
-                  />
-                </label>
                 <button className="cta-button primary" onClick={triggerDisruption} disabled={thinking}>
-                  {thinking ? 'Computing recovery paths...' : 'Generate Recovery Plans'}
+                  {thinking ? 'Computing...' : 'Generate Recovery Plans'}
                 </button>
               </div>
-              {disruptionTypes.length > 0 && (
-                <div className="helper">
-                  <span>Common actions:</span>
-                  <ul>
-                    {(disruptionTypes.find((item) => item.type === selectedDisruption.type)?.common_actions || []).map((action) => (
-                      <li key={action}>{action}</li>
-                    ))}
-                  </ul>
+            </div>
+
+            <div className="panel-card">
+              <div className="panel-header inline">
+                <div>
+                  <h2>Recovery Strategies</h2>
+                  <span className="panel-subtitle">Neuro-symbolic proposals</span>
+                </div>
+                {thinking && (
+                  <Loader2 className="spin" size={14} color="#38bdf8" />
+                )}
+              </div>
+
+              {proposals.length === 0 && !thinking && (
+                <div className="empty-state" style={{ minHeight: '100px' }}>
+                  <TrendingUp size={18} />
+                  <span style={{ fontSize: '0.75rem' }}>No proposals yet</span>
                 </div>
               )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', maxHeight: '280px', overflowY: 'auto' }}>
+                {proposals.map((proposal) => (
+                  <div key={proposal.id} className={`proposal-card ${approvedSolution?.id === proposal.id ? 'approved' : ''}`} style={{ padding: '0.75rem' }}>
+                    <div className="proposal-header">
+                      <div className={`badge ${proposal.compliant ? 'badge-success' : 'badge-warning'}`}>
+                        {proposal.compliant ? <CheckCircle size={10} /> : <AlertCircle size={10} />}
+                        <span>{proposal.compliant ? 'Safe' : 'Review'}</span>
+                      </div>
+                      <span className="proposal-source">{proposal.source}</span>
+                    </div>
+                    <h4 style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>{proposal.action}</h4>
+                    <p style={{ fontSize: '0.65rem', color: '#94a3b8', lineHeight: 1.3 }}>{proposal.reason}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#cbd5e1', marginTop: '0.25rem' }}>
+                      <span>Impact: {proposal.savings}</span>
+                      <span>{proposal.disruption_type?.toUpperCase()}</span>
+                    </div>
+                    {proposal.violations && proposal.violations.length > 0 && (
+                      <div style={{ padding: '0.4rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '0.375rem', fontSize: '0.625rem', color: '#fca5a5', marginTop: '0.375rem' }}>
+                        <span style={{ fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>⚠ Violations:</span>
+                        {proposal.violations.map((v, idx) => (
+                          <div key={idx}>• {v.description}</div>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      className="cta-button"
+                      style={{ marginTop: '0.5rem', padding: '0.5rem', fontSize: '0.7rem' }}
+                      disabled={approvedSolution?.id === proposal.id}
+                      onClick={() => handleApprove(proposal)}
+                    >
+                      {approvedSolution?.id === proposal.id ? '✓ Approved' : 'Approve Plan'}
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="panel-card">
               <div className="panel-header">
                 <h2>Service Health</h2>
-                <span className="panel-subtitle">Core microservices powering Neuro-OCC</span>
               </div>
               <div className="service-grid">
                 {SERVICE_ENDPOINTS.map((service) => (
@@ -457,51 +493,6 @@ function App() {
                 ))}
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="panel-card proposals-section">
-          <div className="panel-header inline">
-            <div>
-              <h2>Recommended Recovery Strategies</h2>
-              <span className="panel-subtitle">System 2 reasoning pipeline output</span>
-            </div>
-            {thinking && (
-              <span className="thinking">
-                <Loader2 className="spin" size={16} />
-                Evaluating search tree...
-              </span>
-            )}
-          </div>
-
-          {proposals.length === 0 && !thinking && (
-            <div className="empty-state">
-              <TrendingUp size={20} />
-              <span>No proposals generated yet.</span>
-            </div>
-          )}
-
-          <div className="proposal-grid">
-            {proposals.map((proposal) => (
-              <ProposalCard
-                key={proposal.id}
-                proposal={proposal}
-                onApprove={handleApprove}
-                isApproved={approvedSolution?.id === proposal.id}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section className="panel-card timeline-section">
-          <div className="panel-header">
-            <h2>Operations Timeline</h2>
-            <span className="panel-subtitle">Chronological log of Neuro-OCC reasoning</span>
-          </div>
-          <div className="timeline-list">
-            {timeline.map((item, idx) => (
-              <TimelineItem key={`${item.time}-${idx}`} item={item} />
-            ))}
           </div>
         </section>
       </main>

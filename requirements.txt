@@ -13,3 +13,7 @@ openai==1.51.2
 
 loguru==0.7.2
 sqlalchemy==2.0.35
+
+# Optional: For RL agent training (see scripts/train_rl_agent.py)
+# stable-baselines3>=2.0.0
+# tensorboard>=2.14.0

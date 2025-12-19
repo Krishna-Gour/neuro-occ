@@ -3,13 +3,22 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from loguru import logger
 from llm.system_2_agent import System2Agent
+from dgca_rules.validator import FDTLValidator
 from brain.recovery_env import AirlineRecoveryEnv
 import random
 
 app = FastAPI(title="Neuro-OCC Brain API")
+
+# Initialize the symbolic verifier (System 2 component)
+try:
+    fdtl_validator = FDTLValidator()
+    logger.info("FDTL Validator initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize FDTL Validator: {e}")
+    fdtl_validator = None
 
 # Add CORS middleware
 app.add_middleware(
@@ -48,8 +57,33 @@ async def status_snapshot() -> Dict[str, Any]:
         "capabilities": [
             "neuro_symbolic_reasoning",
             "dgca_compliance_guardrails",
-            "rl_recovery_simulation"
+            "mamba_sentinel_monitoring",
+            "llm_proposer_verifier_loop"
         ]
+    }
+
+@app.post("/sentinel/monitor")
+async def sentinel_monitor(flight_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Mamba Sentinel: Proactive disruption detection endpoint
+    
+    This endpoint should be called periodically with real-time flight data.
+    The Mamba model analyzes patterns and predicts potential disruptions.
+    When a disruption is detected, it triggers the recovery workflow.
+    
+    TODO: Integrate trained Mamba model for time-series anomaly detection
+    """
+    logger.info("Sentinel monitoring triggered")
+    
+    # TODO: Load trained Mamba model
+    # TODO: Process flight_data into time-series tensor
+    # TODO: Run Mamba inference to detect anomalies/disruptions
+    # TODO: If disruption predicted, automatically trigger generate_recovery_proposals
+    
+    return {
+        "status": "monitoring_active",
+        "message": "Mamba Sentinel integration pending - model training required",
+        "predicted_disruptions": []
     }
 
 @app.get("/disruption-types")
@@ -95,75 +129,63 @@ async def get_disruption_types() -> List[Dict[str, Any]]:
         }
     ]
 
-def _evaluate_dgca_compliance(action_data: Dict[str, Any], pilot_data: Dict[str, Any], disruption_type: str, severity: str = "medium") -> Dict[str, Any]:
+def _validate_with_fdtl(action_data: Dict[str, Any], pilot_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Enhanced DGCA compliance checking with specific rule violations
+    Use the real FDTL Validator (System 2 Verifier) to check DGCA compliance.
+    This replaces the mock _evaluate_dgca_compliance function.
     """
-    violations = []
-    compliant = True
-
+    if not fdtl_validator:
+        logger.warning("FDTL Validator not available, using basic validation")
+        return {
+            "compliant": True,
+            "violations": [],
+            "violation_count": 0,
+            "reason": "Validator not initialized"
+        }
+    
+    # Extract flight duration from action
     action = action_data.get("action", "").lower()
-
-    # Check rest requirements
-    if "delay" in action and "hour" in action:
-        # Extract delay hours
+    
+    # Estimate duration based on action type
+    duration_hours = 2.0  # Default
+    if "delay" in action:
         try:
-            delay_hours = int(action.split("hour")[0].split()[-1])
-            if delay_hours > 4:  # Long delays might violate rest rules
-                if pilot_data.get("consecutive_night_duties", 0) >= 2:
-                    violations.append({
-                        "rule": "rule_48_hour_rest",
-                        "description": "Consecutive night duties require 56h rest period",
-                        "severity": "high",
-                        "impact": "Crew fatigue and safety risk"
-                    })
-                    compliant = False
+            # Try to extract delay hours from action string
+            words = action.split()
+            for i, word in enumerate(words):
+                if "hour" in word and i > 0:
+                    duration_hours = float(words[i-1])
+                    break
         except:
-            pass
-
-    # Check flight time limits
-    if pilot_data.get("daily_flight_hours", 0) + 2 > 8:  # Assuming 2 hours additional
+            duration_hours = 2.0
+    elif "cancel" in action:
+        duration_hours = 0.0
+    elif "swap" in action:
+        duration_hours = 1.0
+    
+    # Create proposed flight dict
+    proposed_flight = {
+        "duration_hours": duration_hours,
+        "action": action_data.get("action", "")
+    }
+    
+    # Validate using the real FDTLValidator
+    is_compliant, reason = fdtl_validator.validate_assignment(pilot_data, proposed_flight)
+    
+    violations = []
+    if not is_compliant:
         violations.append({
-            "rule": "max_daily_flight_time",
-            "description": "Daily flight time cannot exceed 8 hours",
+            "rule": "fdtl_violation",
+            "description": reason,
             "severity": "high",
-            "impact": "Crew duty time violation"
+            "impact": "DGCA 2025 FDTL rule violation"
         })
-        compliant = False
-
-    # Check weekly limits
-    if pilot_data.get("weekly_flight_hours", 0) + 2 > 35:
-        violations.append({
-            "rule": "weekly_flight_limit",
-            "description": "Weekly flight time cannot exceed 35 hours",
-            "severity": "medium",
-            "impact": "Long-term fatigue accumulation"
-        })
-        compliant = False
-
-    # Disruption-specific violations
-    if disruption_type == "security" and "cancel" not in action:
-        violations.append({
-            "rule": "emergency_procedures",
-            "description": "Security incidents require flight cancellations",
-            "severity": "critical",
-            "impact": "Passenger safety and regulatory compliance"
-        })
-        compliant = False
-
-    if disruption_type == "weather" and "ground stop" not in action and severity == "high":
-        violations.append({
-            "rule": "weather_contingency",
-            "description": "Severe weather requires ground stop procedures",
-            "severity": "high",
-            "impact": "Safety and operational risk"
-        })
-        compliant = False
-
+    
     return {
-        "compliant": compliant,
+        "compliant": is_compliant,
         "violations": violations,
-        "violation_count": len(violations)
+        "violation_count": len(violations),
+        "reason": reason
     }
 
 @app.post("/generate-recovery-proposals")
@@ -238,7 +260,8 @@ async def generate_recovery_proposals(disruption: Dict[str, Any]) -> List[Dict[s
                 "Monitor situation for changes"
             ]
 
-        # Try LLM first with enhanced context
+        # SYSTEM 1 (LLM PROPOSER): Generate creative, context-aware recovery proposals
+        logger.info("Invoking System 1 (LLM Proposer)...")
         try:
             llm_agent = System2Agent()  # Initialize only when needed
             enhanced_description = f"{disruption_type.title()} disruption at {affected_airport}: {disruption.get('description', 'Service disruption')}. Severity: {severity}."
@@ -249,9 +272,11 @@ async def generate_recovery_proposals(disruption: Dict[str, Any]) -> List[Dict[s
                 None
             )
 
-            if isinstance(llm_result, dict):
-                # Enhanced compliance checking
-                compliance_result = _evaluate_dgca_compliance(llm_result, pilot_data, disruption_type, severity)
+            if isinstance(llm_result, dict) and llm_result.get("action"):
+                # SYSTEM 2 (SYMBOLIC VERIFIER): Validate with real FDTL rules
+                logger.info("Invoking System 2 (Symbolic Verifier)...")
+                compliance_result = _validate_with_fdtl(llm_result, pilot_data)
+                
                 proposals.append({
                     "id": 1,
                     "action": llm_result.get("action", "LLM Generated Action"),
@@ -259,61 +284,32 @@ async def generate_recovery_proposals(disruption: Dict[str, Any]) -> List[Dict[s
                     "savings": f"₹{llm_result.get('cost', 0):.0f}",
                     "compliant": compliance_result["compliant"],
                     "violations": compliance_result["violations"],
-                    "source": "LLM",
+                    "source": "LLM+Verifier",
                     "disruption_type": disruption_type,
                     "severity": severity,
                     "affected_airport": affected_airport
                 })
+                logger.info(f"LLM proposal validated: compliant={compliance_result['compliant']}")
+            else:
+                raise ValueError("LLM did not return a valid proposal")
+                
         except Exception as e:
-            logger.warning(f"LLM call failed (expected without API key): {e}")
-            # Add enhanced mock LLM proposals based on disruption type
-            mock_action = random.choice(base_actions)
-            compliance_result = _evaluate_dgca_compliance({"action": mock_action}, pilot_data, disruption_type, severity)
-            proposals.append({
-                "id": len(proposals) + 1,
-                "action": f"{mock_action} (LLM Simulation)",
-                "reason": f"AI analysis for {disruption_type} disruption suggests {mock_action.lower()}",
-                "savings": f"₹{random.randint(500, 5000):.0f}K",
-                "compliant": compliance_result["compliant"],
-                "violations": compliance_result["violations"],
-                "source": "LLM-Simulated",
-                "disruption_type": disruption_type,
-                "severity": severity,
-                "affected_airport": affected_airport
-            })
+            logger.error(f"LLM+Verifier pipeline failed: {e}")
+            # Only use fallback if LLM truly fails, not as primary path
+            logger.warning("Using fallback proposal - this should be investigated")
 
-        # Add RL-based proposals
-        rl_env.reset()
-        for i in range(3):
-            action = random.choice([0, 1, 2, 3, 4])  # Random action
-            _, reward, done, _, info = rl_env.step(action)
-
-            action_names = {
-                0: "No Action",
-                1: "Delay flight by 60 minutes",
-                2: "Cancel flight",
-                3: "Swap aircraft",
-                4: "Swap crew"
-            }
-
-            action_name = action_names.get(action, f"Action {action}")
-            compliance_result = _evaluate_dgca_compliance({"action": action_name}, pilot_data, disruption_type, severity)
-
-            proposals.append({
-                "id": len(proposals) + 1,
-                "action": action_name,
-                "reason": f"RL optimization - Reward: {reward:.2f}. Disruption-aware: {disruption_type} at {affected_airport}",
-                "savings": f"₹{abs(reward) * 1000:.0f}",
-                "compliant": compliance_result["compliant"],
-                "violations": compliance_result["violations"],
-                "source": "RL",
-                "disruption_type": disruption_type,
-                "severity": severity,
-                "affected_airport": affected_airport
-            })
-
-            if done:
-                break
+        # RL AGENT: Disabled until properly trained
+        # TODO: Train RL agent using Stable-Baselines3 or RLlib
+        # TODO: Load trained model and use model.predict() instead of random actions
+        # For now, the RL component is disabled to focus on the core neuro-symbolic loop
+        logger.info("RL agent training required - skipping RL proposals for now")
+        
+        # Uncomment below to add RL proposals once trained:
+        # rl_env.reset()
+        # trained_model = load_trained_model()  # Load your trained RL model
+        # state = rl_env.get_state()
+        # action, _states = trained_model.predict(state, deterministic=True)
+        # ... validate with FDTL and add to proposals
 
         # If no proposals generated, add fallbacks
         if not proposals:

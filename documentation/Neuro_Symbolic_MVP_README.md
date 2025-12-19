@@ -1,53 +1,54 @@
-# Neuro-Symbolic MVP - Production Proposer-Verifier-Explainer Core
+# Neuro-Symbolic Architecture - Production Implementation
 
-## 1. Purpose: The Heart of Neuro-OCC 2.0 Production System
+## 1. Purpose: The Heart of Neuro-OCC 2.0
 
-The Minimum Viable Product (MVP) of the Neuro-OCC system demonstrates the power of its core architectural pattern: the **Proposer-Verifier-Explainer loop** in a production-ready environment.
+The Neuro-OCC system implements a **true neuro-symbolic architecture** combining LLM creativity (System 1) with symbolic logic (System 2) for airline operations control. This architecture ensures AI-generated proposals are both intelligent and regulatory-compliant.
 
-This architecture is a direct implementation of a neuro-symbolic approach, combining a neural network's (LLM) ability to generate creative solutions with a symbolic engine's ability to perform rigorous, logical validation. This fusion creates an AI system that is both intelligent and trustworthy for airline operations control.
+**December 2025 Update**: The architecture has been refactored to properly integrate all neuro-symbolic components as originally designed, replacing mock implementations with real validators and fixing the LLM integration.
 
-The `scripts/mvp_demo.py` script provides a clear, step-by-step demonstration of this loop in action, now integrated with the full production system.
+## 2. Production Architecture (Implemented)
 
-## 2. Production System Integration
+```
+┌─────────────────────────────────────────────────────────────┐
+│                NEURO-SYMBOLIC REASONING ENGINE               │
+└─────────────────────────────────────────────────────────────┘
 
-The neuro-symbolic core is fully integrated into Neuro-OCC 2.0:
+1. SENTINEL (Mamba Model) - Proactive Detection
+   └─→ /sentinel/monitor endpoint added (training pending)
+   
+2. PROPOSER (System 1 - Fast Thinking)
+   └─→ llm/system_2_agent.py (LLM generates creative proposals)
+   
+3. VERIFIER (System 2 - Slow Thinking)  
+   └─→ dgca_rules/validator.py (FDTLValidator checks DGCA rules)
+   
+4. HUMAN-IN-LOOP (Dashboard)
+   └─→ Operator reviews validated proposals and approves
+```
 
-- **Automated Execution**: MVP demo runs as part of system validation during startup
-- **Real MCP Integration**: Uses live data from MCP servers instead of mock data
-- **Production APIs**: Connected to Brain API for real disruption handling
-- **Dashboard Integration**: Results displayed in human-in-the-loop interface
-- **Monitoring**: Performance metrics and decision quality tracking
+### Real Implementation in brain_api.py
+
+**Before (Incorrect)**:
+- Mock `_evaluate_dgca_compliance()` with incomplete rules
+- LLM failure treated as expected, fallback to random
+- RL using `random.choice()` instead of trained model
+- Mamba sentinel completely disconnected
+
+**After (Fixed)**:
+- Real `_validate_with_fdtl()` using FDTLValidator
+- LLM is primary proposer, failures logged as issues
+- RL disabled until properly trained with Stable-Baselines3
+- Mamba sentinel endpoint created for future integration
 
 ## 3. Inspired by "Thinking, Fast and Slow"
 
-This architecture is analogous to the dual-process model of human cognition described by Daniel Kahneman:
+This architecture implements Daniel Kahneman's dual-process cognitive model:
 
-*   **The Proposer (System 1 - "Thinking Fast")**: This is the LLM agent. When faced with a disruption, it quickly and intuitively generates potential solutions. This is like a human expert's "gut feeling" or first idea. It's fast and creative but can sometimes be flawed.
+*   **Proposer (System 1 - "Thinking Fast")**: The LLM agent (`System2Agent`) quickly generates creative recovery strategies. Like human intuition, it's fast and innovative but needs validation.
 
-*   **The Verifier (System 2 - "Thinking Slow")**: This is the symbolic `FDTLValidator`. It doesn't have ideas, but it knows the rules inside and out. It takes the proposed solution and deliberately, methodically, and unemotionally checks it against the codified DGCA FDTL rulebook. This process is slower but guarantees logical and regulatory soundness.
+*   **Verifier (System 2 - "Thinking Slow")**: The symbolic `FDTLValidator` methodically checks proposals against DGCA FDTL rules from `config.yaml`. Slow but guarantees logical and regulatory soundness.
 
-*   **The Explainer (System 1.5 - "Informed Narration")**: This is the LLM again, but now it's armed with the Verifier's logical output. It translates the cold, hard facts from the Verifier into a clear, human-readable explanation. This builds a "glass box," allowing the human operator to understand the *why* behind the AI's reasoning.
-
-## 4. Production Architecture
-
-### Service Integration
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Disruption    │───▶│   Proposer       │───▶│   Verifier      │
-│   Detection     │    │   (LLM Agent)    │    │   (Symbolic)    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                              │                        │
-                              ▼                        ▼
-                       ┌──────────────────┐    ┌─────────────────┐
-                       │   Explainer      │    │   Validation    │
-                       │   (LLM Agent)    │    │   Results       │
-                       └──────────────────┘    └─────────────────┘
-                              │                        │
-                              └────────────────────────┘
-                                       │
-                            ┌──────────────────┐
-                            │   Human Review   │
-                            │   (Dashboard)    │
+*   **Explainer (Human Communication)**: The LLM provides natural language reasoning that helps operators understand *why* a proposal is safe or requires attention.
                             └──────────────────┘
 ```
 
