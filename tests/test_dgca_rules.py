@@ -2,6 +2,7 @@ import unittest
 from dgca_rules.validator import FDTLValidator
 import os
 import yaml
+import tempfile
 
 class TestFDTLValidator(unittest.TestCase):
     @classmethod
@@ -56,6 +57,20 @@ class TestFDTLValidator(unittest.TestCase):
         compliant, reason = self.validator.validate_assignment(pilot, flight)
         self.assertFalse(compliant)
         self.assertIn("weekly flight limit", reason)
+
+    def test_config_file_not_found(self):
+        with self.assertRaises(FileNotFoundError):
+            FDTLValidator(config_path="nonexistent.yaml")
+
+    def test_invalid_config_missing_section(self):
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump({"other": "data"}, f)
+            temp_path = f.name
+        try:
+            with self.assertRaises(KeyError):
+                FDTLValidator(config_path=temp_path)
+        finally:
+            os.unlink(temp_path)
 
 if __name__ == '__main__':
     unittest.main()
