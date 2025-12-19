@@ -2,7 +2,7 @@
 
 A production-ready neuro-symbolic AI system for intelligent airline operations control and disruption management.
 
-## 🎯 **Overview**
+## **Overview**
 
 Neuro-OCC is an advanced AI-powered system that revolutionizes airline Operations Control Centers (OCCs) by combining Large Language Models with symbolic reasoning to handle complex flight disruptions. The system provides real-time recovery solutions while ensuring full compliance with aviation regulations.
 
@@ -14,7 +14,7 @@ Neuro-OCC is an advanced AI-powered system that revolutionizes airline Operation
 - **Automated Startup**: One-command deployment with health monitoring
 - **Modern UI**: Glassmorphism design with smooth animations
 
-## 🚀 **Quick Start**
+## **Quick Start**
 
 ### **Prerequisites**
 - Python 3.13+
@@ -27,13 +27,13 @@ Neuro-OCC is an advanced AI-powered system that revolutionizes airline Operation
 ```
 
 This automatically:
-- ✅ Sets up Python virtual environment
-- ✅ Installs all dependencies (FastAPI, React, Ray, PyTorch)
-- ✅ Initializes SQLite database with sample data
-- ✅ Starts MCP servers (Crew, Fleet, Regulatory)
-- ✅ Launches Brain API with AI analysis
-- ✅ Starts React dashboard with modern UI
-- ✅ Performs health checks on all services
+-  Sets up Python virtual environment
+-  Installs all dependencies (FastAPI, React, Ray, PyTorch)
+-  Initializes SQLite database with sample data
+-  Starts MCP servers (Crew, Fleet, Regulatory)
+-  Launches Brain API with AI analysis
+-  Starts React dashboard with modern UI
+-  Performs health checks on all services
 
 **Access the dashboard at: http://localhost:3000**
 
@@ -44,7 +44,7 @@ This automatically:
 
 Or press `Ctrl+C` in the terminal running `start.sh`
 
-## 🏗️ **System Architecture**
+## **System Architecture**
 
 ### **Core Components**
 
@@ -64,7 +64,7 @@ Or press `Ctrl+C` in the terminal running `start.sh`
 4. **Human Review**: Dashboard presents options with explanations
 5. **Execution**: Approved solutions trigger automated recovery actions
 
-## 📊 **Features**
+## **Features**
 
 ### **Dashboard Features**
 - **Flight Network Visualization**: Interactive ReactFlow network map with 30 airports
@@ -84,7 +84,7 @@ Or press `Ctrl+C` in the terminal running `start.sh`
 - **Safety-First Approach**: Conservative validation with human oversight
 - **Fallback Mechanisms**: Deterministic contingency plans when LLM unavailable
 
-## 📁 **Project Structure**
+## **Project Structure**
 
 ```
 neuro-occ/
@@ -128,7 +128,7 @@ neuro-occ/
 └── neuro_occ.db         # SQLite database (auto-generated)
 ```
 
-## 🛠️ **Manual Setup** (Alternative)
+## **Manual Setup** (Alternative)
 
 If you prefer manual setup:
 
@@ -159,7 +159,7 @@ If you prefer manual setup:
    cd dashboard && npm start
    ```
 
-## 🔧 **Configuration**
+## **Configuration**
 
 Edit `config.yaml` to customize:
 - **LLM Settings**: OpenAI API endpoints and keys
@@ -168,7 +168,7 @@ Edit `config.yaml` to customize:
 - **Network Settings**: Airport codes and flight routes
 - **RL Parameters**: Training hyperparameters for recovery optimization
 
-## 📚 **Documentation**
+## **Documentation**
 
 Detailed documentation available in `documentation/`:
 - [System Architecture](documentation/README.md) - Overall system design
@@ -179,7 +179,7 @@ Detailed documentation available in `documentation/`:
 - [MCP Servers](documentation/Model_Context_Protocol_README.md) - API specifications
 - [Mamba Predictive Maintenance](documentation/Mamba_Predictive_Maintenance_README.md) - ML models
 
-## 🧪 **Testing**
+## **Testing**
 
 Run the test suite:
 ```bash
@@ -191,17 +191,17 @@ Run MVP demo:
 PYTHONPATH=. python scripts/mvp_demo.py
 ```
 
-## 🚦 **System Status**
+## **System Status**
 
 ### **Current Implementation Status**
-- ✅ **Brain API**: Fully functional with OpenAI integration
-- ✅ **MCP Servers**: All three servers operational (Crew, Fleet, Regulatory)
-- ✅ **Dashboard**: Complete with modern glassmorphism UI and real-time visualization
-- ✅ **Database**: SQLite with 500 pilots, 100 aircraft, 349 flights, 30 airports
-- ✅ **DGCA Compliance**: Rule validation with detailed violation reporting
-- ✅ **Disruption Handling**: 5 scenario types supported (weather, technical, crew, security, ATC)
-- ✅ **Human Interface**: Approval workflow with timeline tracking
-- ✅ **Automated Deployment**: One-command startup with health monitoring
+-  **Brain API**: Fully functional with OpenAI integration
+-  **MCP Servers**: All three servers operational (Crew, Fleet, Regulatory)
+-  **Dashboard**: Complete with modern glassmorphism UI and real-time visualization
+-  **Database**: SQLite with 500 pilots, 100 aircraft, 349 flights, 30 airports
+-  **DGCA Compliance**: Rule validation with detailed violation reporting
+-  **Disruption Handling**: 5 scenario types supported (weather, technical, crew, security, ATC)
+-  **Human Interface**: Approval workflow with timeline tracking
+-  **Automated Deployment**: One-command startup with health monitoring
 
 ### **Performance Metrics**
 - **Response Time**: <2 seconds for proposal generation
@@ -210,7 +210,7 @@ PYTHONPATH=. python scripts/mvp_demo.py
 - **Data Scale**: 500+ pilots, 100+ aircraft, 349 flights, 30 airports
 - **UI Performance**: 60 FPS animations, <100ms interaction latency
 
-## 💻 **Technology Stack**
+## **Technology Stack**
 
 ### **Backend**
 - **Python 3.13**: Core language
@@ -232,38 +232,3 @@ PYTHONPATH=. python scripts/mvp_demo.py
 - **pytest**: Testing framework
 - **loguru**: Enhanced logging
 - **pydantic**: Data validation
-
-## 🤝 **Contributing**
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Submit a pull request
-
-## 📄 **License**
-
-This project is experimental and not intended for production airline operations.
-
-## ⚠️ **Disclaimer**
-
-This is a proof-of-concept system for research and demonstration purposes. It should not be used for actual airline operations without extensive testing, certification, and validation by aviation authorities.
-
-## 📞 **Support**
-
-For questions or issues:
-- Create an issue on GitHub
-- Check the documentation folder
-- Review the logs in `.runtime_logs/`
-
-## 🎯 **Roadmap**
-
-- [ ] Integration with real airline data APIs
-- [ ] Advanced ML models for demand forecasting
-- [ ] Multi-airline coordination capabilities
-- [ ] Mobile app for on-the-go operations
-- [ ] Enhanced RL algorithms for optimization
-- [ ] Real-time weather API integration
-- [ ] Automated testing suite expansion
